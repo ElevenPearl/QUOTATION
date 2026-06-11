@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Eleven Pearl — Quotation</title>
-  <style>
+  <title>ELEVEN PEARL — Quotation</title>
+  <style>O
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     .zivo { margin-top: 4px; }
     body {
@@ -15,6 +15,22 @@
       flex-direction: column;
       align-items: center;
       padding: 40px 16px;
+    }
+
+    /* ── Mobile scaling ── */
+    @media (max-width: 840px) {
+      body { padding: 12px 0; background: #e8e6e0; align-items: flex-start; }
+      .toolbar { max-width: 100%; padding: 0 12px; justify-content: flex-start; flex-wrap: wrap; }
+      .doc-scaler {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 16px;
+      }
+      .doc {
+        min-width: 794px;
+        margin: 0 auto;
+      }
     }
 
     /* ── Toolbar ── */
@@ -259,24 +275,26 @@
     /* Column resize handle */
     .col-resize-handle {
       position: absolute;
-      top: 0; right: 0;
-      width: 6px; height: 100%;
+      top: 0; right: -4px;
+      width: 12px; height: 100%;
       cursor: col-resize;
       z-index: 10;
       background: transparent;
       transition: background 0.15s;
+      touch-action: none;
     }
     .col-resize-handle:hover, .col-resize-handle.resizing { background: rgba(68,68,65,0.25); }
 
     /* Row resize handle */
     .row-resize-handle {
       position: absolute;
-      bottom: 0; left: 0;
-      width: 100%; height: 5px;
+      bottom: -4px; left: 0;
+      width: 100%; height: 12px;
       cursor: row-resize;
       z-index: 10;
       background: transparent;
       transition: background 0.15s;
+      touch-action: none;
     }
     .row-resize-handle:hover, .row-resize-handle.resizing { background: rgba(68,68,65,0.2); }
 
@@ -380,29 +398,56 @@
 
     /* ── Print styles ── */
     @media print {
-      body { background: white; padding: 0; }
+      body { background: white; padding: 0; margin: 0; }
       .toolbar, .remove-btn, .add-row, .actions, .logo-wrap input, .sig-upload input,
       .img-cell input, .gst-toggle-row, .col-manager-overlay, .col-resize-handle, .row-resize-handle, .note-del-btn { display: none !important; }
       .note-input { border: none !important; background: transparent !important; pointer-events: none; }
       .note-add-btn { display: none !important; }
-      .doc { border: none; border-radius: 0; box-shadow: none; width: 210mm; min-height: 297mm; height: auto; overflow: visible; }
+      /* Valid date: hide input, show text on print */
+      #validDate { display: none !important; }
+      #validDateDisplay { display: block !important; }
+      .doc-scaler { width: auto; overflow: visible; padding: 0; }
+      .doc { border: none; border-radius: 0; box-shadow: none; width: 100%; min-width: 0; min-height: 0; height: auto; overflow: visible; }
       .desc-input, .num-input, .field-input { border: none !important; outline: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; box-shadow: none !important; }
       textarea.desc-input { display: none !important; }
       .desc-print { display: block !important; }
       .qty-main { display: none !important; }
       .custom-unit-input { display: none !important; }
       .qty-print-text { display: inline !important; color: #000000; white-space: nowrap; font-size: 14px; }
-      table { page-break-inside: auto; }
+      /* Image fix for mobile print */
+      .img-cell { overflow: hidden !important; }
+      .img-cell img { display: block !important; width: 100% !important; height: auto !important; max-height: 78px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      /* Date input fix */
+      input[type="date"] { -webkit-appearance: none; appearance: none; }
+      input[type="date"]::-webkit-date-and-time-value { text-align: right; }
+      table { page-break-inside: auto; width: 100%; }
       thead { display: table-header-group; }
       tr { page-break-inside: avoid; page-break-after: auto; }
+      td, th { overflow: hidden; }
       .footer-section { page-break-inside: avoid; break-inside: avoid; }
       .sig-section { page-break-inside: avoid; break-inside: avoid; }
       .doc-end-block { page-break-inside: avoid; break-inside: avoid; }
       @page { size: A4; margin: 12mm 14mm; }
+      html { zoom: 0.9; }
     }
   </style>
 </head>
 <body>
+
+  <!-- PDF Name Modal -->
+  <div class="col-manager-overlay" id="pdfNameOverlay">
+    <div class="col-manager-panel" style="width:320px;">
+      <h3 style="margin-bottom:6px;">Name your PDF</h3>
+      <p class="hint" style="margin-bottom:14px;">This will be the filename when you save or share.</p>
+      <input id="pdfNameInput" class="col-add-input" type="text" style="width:100%;margin-bottom:16px;"
+        placeholder="Quotation name…"
+        onkeydown="if(event.key==='Enter') confirmPrint()">
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn-ghost" style="font-size:13px;padding:7px 16px;border-radius:8px;cursor:pointer;font-family:inherit;" onclick="cancelPrint()">Cancel</button>
+        <button class="col-done-btn" onclick="confirmPrint()">Save PDF</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Column Manager Overlay -->
   <div class="col-manager-overlay" id="colManagerOverlay">
@@ -438,6 +483,7 @@
     </button>
   </div>
 
+  <div class="doc-scaler">
   <div class="doc" id="quotation">
 
     <!-- Header -->
@@ -479,7 +525,8 @@
         </div>
         <div>
           <div class="field-label">Valid until</div>
-          <input class="field-input" type="date" id="validDate">
+          <input class="field-input" type="date" id="validDate" oninput="updateValidDateDisplay(this.value)">
+          <div class="field-input date-print-text" id="validDateDisplay" style="display:none;"></div>
         </div>
       </div>
     </div>
@@ -527,6 +574,7 @@
       </div>
     </div>
   </div>
+  </div><!-- /.doc-scaler -->
 
   <script>
     // ── Save PDF ──
@@ -534,10 +582,22 @@
       const quotNum = document.getElementById('quotNum').textContent.trim();
       const last3 = quotNum.slice(-3);
       const partyName = document.querySelector('.party-row .field-input').value.trim() || 'Party';
+      const suggested = `Quotation ${last3}, ${partyName}`;
+      document.getElementById('pdfNameInput').value = suggested;
+      document.getElementById('pdfNameOverlay').classList.add('open');
+    }
+
+    function confirmPrint() {
+      const name = document.getElementById('pdfNameInput').value.trim() || 'Quotation';
+      document.getElementById('pdfNameOverlay').classList.remove('open');
       const prevTitle = document.title;
-      document.title = `Quotation ${last3},${partyName}`;
+      document.title = name;
       window.print();
       document.title = prevTitle;
+    }
+
+    function cancelPrint() {
+      document.getElementById('pdfNameOverlay').classList.remove('open');
     }
 
     // ── State ──
@@ -694,6 +754,7 @@
         const handle = document.createElement('div');
         handle.className = 'col-resize-handle';
         handle.addEventListener('mousedown', (e) => startColResize(e, col, th));
+        handle.addEventListener('touchstart', (e) => startColResize(e, col, th), { passive: false });
         th.appendChild(handle);
 
         tr.appendChild(th);
@@ -704,12 +765,29 @@
       tr.appendChild(thAct);
     }
 
+    // ── Unified pointer helpers (mouse + touch) ──
+    function clientX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
+    function clientY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
+
+    function addMoveListeners(onMove, onUp) {
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
+    }
+    function removeMoveListeners(onMove, onUp) {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onUp);
+    }
+
     // ── Column resize ──
     let colResizeState = null;
     function startColResize(e, col, th) {
       e.preventDefault();
       e.stopPropagation();
-      const startX = e.clientX;
+      const startX = clientX(e);
       const startW = th.offsetWidth;
       const handle = th.querySelector('.col-resize-handle');
       handle.classList.add('resizing');
@@ -717,7 +795,8 @@
       colResizeState = { col, th, startX, startW, handle };
 
       function onMove(e) {
-        const delta = e.clientX - colResizeState.startX;
+        e.preventDefault();
+        const delta = clientX(e) - colResizeState.startX;
         const newW = Math.max(40, colResizeState.startW + delta);
         colResizeState.col.width = newW + 'px';
         colResizeState.th.style.width = newW + 'px';
@@ -725,12 +804,10 @@
       function onUp() {
         colResizeState.handle.classList.remove('resizing');
         document.body.style.cursor = '';
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
+        removeMoveListeners(onMove, onUp);
         colResizeState = null;
       }
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+      addMoveListeners(onMove, onUp);
     }
 
     // ── Row resize ──
@@ -745,14 +822,15 @@
     function startRowResize(e, productId, tr) {
       e.preventDefault();
       e.stopPropagation();
-      const startY = e.clientY;
+      const startY = clientY(e);
       const startH = tr.offsetHeight;
       const handle = tr.querySelector('.row-resize-handle');
       if (handle) handle.classList.add('resizing');
       document.body.style.cursor = 'row-resize';
 
       function onMove(e) {
-        const delta = e.clientY - startY;
+        e.preventDefault();
+        const delta = clientY(e) - startY;
         const newH = Math.max(24, startH + delta);
         rowHeights[productId] = newH;
         applyRowHeight(tr, newH);
@@ -760,11 +838,9 @@
       function onUp() {
         if (handle) handle.classList.remove('resizing');
         document.body.style.cursor = '';
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
+        removeMoveListeners(onMove, onUp);
       }
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+      addMoveListeners(onMove, onUp);
     }
 
     // ── Render table ──
@@ -856,6 +932,7 @@
           rowHandle.className = 'row-resize-handle';
           rowHandle.title = 'Drag to resize row';
           rowHandle.addEventListener('mousedown', (e) => startRowResize(e, p.id, tr));
+          rowHandle.addEventListener('touchstart', (e) => startRowResize(e, p.id, tr), { passive: false });
           firstTd.appendChild(rowHandle);
         }
 
@@ -1022,13 +1099,26 @@
       return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     }
 
+    function updateValidDateDisplay(val) {
+      const el = document.getElementById('validDateDisplay');
+      if (!el) return;
+      if (val) {
+        const d = new Date(val + 'T00:00:00');
+        el.textContent = formatDate(d);
+      } else {
+        el.textContent = '';
+      }
+    }
+
     // ── Init ──
     (function init() {
       const today = new Date();
       document.getElementById('quotDate').textContent = formatDate(today);
       const valid = new Date(today);
       valid.setDate(valid.getDate() + 7);
-      document.getElementById('validDate').value = valid.toISOString().split('T')[0];
+      const validDateVal = valid.toISOString().split('T')[0];
+      document.getElementById('validDate').value = validDateVal;
+      updateValidDateDisplay(validDateVal);
       const num = String(Math.floor(Math.random() * 900) + 100);
       document.getElementById('quotNum').textContent = `#QT-${today.getFullYear()}-${num}`;
       updateNotes();
