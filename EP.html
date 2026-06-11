@@ -398,6 +398,16 @@
 
     /* ── Print styles ── */
     @media print {
+      @page { size: A4 portrait; margin: 12mm 14mm; }
+
+      html, body {
+        width: 210mm;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
       body { background: white; padding: 0; margin: 0; }
       .toolbar, .remove-btn, .add-row, .actions, .logo-wrap input, .sig-upload input,
       .img-cell input, .gst-toggle-row, .col-manager-overlay, .col-resize-handle, .row-resize-handle, .note-del-btn { display: none !important; }
@@ -406,8 +416,23 @@
       /* Valid date: hide input, show text on print */
       #validDate { display: none !important; }
       #validDateDisplay { display: block !important; }
-      .doc-scaler { width: auto; overflow: visible; padding: 0; }
-      .doc { border: none; border-radius: 0; box-shadow: none; width: 100%; min-width: 0; min-height: 0; height: auto; overflow: visible; }
+      .doc-scaler {
+        width: 100% !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .doc {
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+        margin: 0 !important;
+      }
       .desc-input, .num-input, .field-input { border: none !important; outline: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; box-shadow: none !important; }
       textarea.desc-input { display: none !important; }
       .desc-print { display: block !important; }
@@ -427,7 +452,6 @@
       .footer-section { page-break-inside: avoid; break-inside: avoid; }
       .sig-section { page-break-inside: avoid; break-inside: avoid; }
       .doc-end-block { page-break-inside: avoid; break-inside: avoid; }
-      @page { size: A4; margin: 12mm 14mm; }
     }
   </style>
 </head>
@@ -591,7 +615,7 @@
       document.getElementById('pdfNameOverlay').classList.remove('open');
       const prevTitle = document.title;
       document.title = name;
-      window.print().from(document.getElementById('quotation')).save();
+      window.print();
       document.title = prevTitle;
     }
 
