@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eleven Pearl — Quotation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .zivo { margin-top: 4px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: #e8e6e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      width: 100%;
+      max-width: 794px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .toolbar button {
+      font-size: 13px;
+      padding: 7px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-ghost {
+      background: transparent;
+      border: 0.5px solid #B4B2A9;
+      color: #000000;
+    }
+    .btn-ghost:hover { background: #D3D1C7; }
+    .btn-solid {
+      background: #444441;
+      border: none;
+      color: #F1EFE8;
+    }
+    .btn-solid:hover { background: #2C2C2A; }
+
+    /* ── Column Manager Panel ── */
+    .col-manager-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.25);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .col-manager-overlay.open { display: flex; }
+    .col-manager-panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      width: 360px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+    .col-manager-panel h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #000;
+      margin-bottom: 4px;
+      letter-spacing: 0.04em;
+    }
+    .col-manager-panel p.hint {
+      font-size: 11px;
+      color: #888780;
+      margin-bottom: 16px;
+    }
+    .col-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .col-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #F1EFE8;
+      border-radius: 7px;
+      padding: 8px 10px;
+      cursor: grab;
+      user-select: none;
+      border: 1px solid transparent;
+      transition: border-color 0.1s, background 0.1s;
+    }
+    .col-item.locked { opacity: 0.5; cursor: not-allowed; }
+    .col-item.dragging { opacity: 0.4; }
+    .col-item.drag-over { border-color: #444441; background: #e5e3dc; }
+    .col-drag-handle {
+      color: #B4B2A9;
+      font-size: 14px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .col-item-name {
+      flex: 1;
+      font-size: 13px;
+      color: #000;
+    }
+    .col-toggle {
+      position: relative;
+      width: 32px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .col-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .col-toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: #D3D1C7;
+      border-radius: 18px;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+    .col-toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+      left: 3px; top: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .col-toggle input:checked + .col-toggle-slider { background: #444441; }
+    .col-toggle input:checked + .col-toggle-slider::before { transform: translateX(14px); }
+
+    .col-add-section { border-top: 0.5px solid #D3D1C7; padding-top: 14px; margin-top: 4px; }
+    .col-add-section label { font-size: 11px; font-weight: 600; color: #000; text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 6px; }
+    .col-add-row { display: flex; gap: 6px; }
+    .col-add-input {
+      flex: 1;
+      font-size: 13px;
+      font-family: inherit;
+      border: 0.5px solid #B4B2A9;
+      border-radius: 6px;
+      padding: 6px 10px;
+      outline: none;
+      background: #F1EFE8;
+      color: #000;
+    }
+    .col-add-input:focus { border-color: #444441; }
+    .col-add-btn {
+      background: #444441;
+      border: none;
+      color: #F1EFE8;
+      font-size: 13px;
+      font-family: inherit;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .col-add-btn:hover { background: #2C2C2A; }
+
+    .col-manager-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 18px;
+    }
+    .col-done-btn {
+      background: #444441;
+      color: #F1EFE8;
+      border: none;
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .col-done-btn:hover { background: #2C2C2A; }
+
+    /* ── Document — A4 size ── */
+    .doc {
+      background: #fff;
+      border: 0.5px solid #D3D1C7;
+      border-radius: 12px;
+      overflow: hidden;
+      width: 794px;
+      min-height: 1123px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Logo + Header ── */
+    .header {
+      padding: 24px 38px 20px 28px;
+      border-bottom: 0.5px solid #D3D1C7;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand-left { display: flex; align-items: left; gap: 16px; }
+    .logo-wrap {
+      width: 64px; height: 64px;
+      border: none; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; cursor: pointer; position: relative;
+      background: transparent; flex-shrink: 0;
+    }
+    .logo-wrap input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .logo-wrap img { width: 100%; height: 100%; object-fit: contain; display: none; }
+    .logo-wrap svg { width: 22px; height: 22px; stroke: #B4B2A9; fill: none; }
+    .logo-placeholder { font-size: 9px; color: #000000; text-align: center; pointer-events: none; }
+    .brand-name { font-size: 20px; font-weight: 600; color: #000000; letter-spacing: 0.06em; }
+    .brand-sub { font-size: 11px; color: #000000; margin-top: 4px; line-height: 1.8; }
+    .doc-meta { text-align: right; }
+    .doc-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: #000000; text-transform: uppercase; margin-bottom: 4px; }
+    .doc-number { font-size: 18px; font-weight: 600; color: #000000; }
+    .doc-date { font-size: 12px; color: #000000; margin-top: 2px; }
+
+    /* ── Party row ── */
+    .party-row {
+      padding: 18px 36px 26px;
+      background: #F1EFE8;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      border-bottom: 0.5px solid #D3D1C7;
+    }
+    .field-group { display: flex; flex-direction: column; gap: 10px; }
+    .field-group.right { text-align: right; }
+    .field-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #000000; text-transform: uppercase; margin-bottom: 3px; }
+    .field-input {
+      font-size: 14px; color: #000000;
+      border: none; border-bottom: 0.5px solid #B4B2A9;
+      background: transparent; padding: 3px 0 4px;
+      width: 100%; font-family: inherit; outline: none;
+    }
+    .field-input::placeholder { color: #000000; font-style: italic; }
+    .field-input:focus { border-bottom-color: #000000; }
+    .field-group.right .field-input { text-align: right; }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; margin-top: 16px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    thead th {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+      color: #000000; text-transform: uppercase; padding: 10px 10px;
+      text-align: left; background: #F1EFE8; border-bottom: 0.5px solid #D3D1C7;
+      position: relative; user-select: none;
+    }
+    thead th.num { text-align: right; }
+    tbody tr { transition: background 0.1s; }
+    tbody tr:hover td { background: #fafaf8; }
+    tbody td { font-size: 14px; color: #000000; padding: 10px 10px; border-bottom: 0.5px solid #D3D1C7; vertical-align: top; position: relative; overflow: hidden; }
+    tbody tr { max-height: none; }
+    tbody td.num { text-align: right; color: #000000; }
+    tbody td.qty-center { text-align: center; color: #000000; }
+    tbody td.muted { color: #000000; font-size: 13px; }
+
+    /* Column resize handle */
+    .col-resize-handle {
+      position: absolute;
+      top: 0; right: 0;
+      width: 6px; height: 100%;
+      cursor: col-resize;
+      z-index: 10;
+      background: transparent;
+      transition: background 0.15s;
+    }
+    .col-resize-handle:hover, .col-resize-handle.resizing { background: rgba(68,68,65,0.25); }
+
+    /* Row resize handle */
+    .row-resize-handle {
+      position: absolute;
+      bottom: 0; left: 0;
+      width: 100%; height: 5px;
+      cursor: row-resize;
+      z-index: 10;
+      background: transparent;
+      transition: background 0.15s;
+    }
+    .row-resize-handle:hover, .row-resize-handle.resizing { background: rgba(68,68,65,0.2); }
+
+    @media print {
+      .col-resize-handle, .row-resize-handle { display: none !important; }
+    }
+
+    .img-cell {
+      width: 96px; height: 78px; background: transparent; border-radius: 4px;
+      display: flex; align-items: center; justify-content: flex-start;
+      overflow: visible; cursor: pointer; border: none; position: relative;
+    }
+    .img-cell input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; z-index: 1; }
+    .img-cell img { width: 96px; height: 78px; object-fit: contain; object-position: left center; display: none; background: transparent; border-radius: 4px; }
+    td:has(.img-cell) { text-align: left; padding-left: 0; }
+    .img-cell .upload-icon { width: 18px; height: 18px; stroke: #B4B2A9; fill: none; display: none; }
+    .img-remove-btn {
+      display: none;
+      position: absolute;
+      top: -7px; right: -7px;
+      width: 20px; height: 20px;
+      background: #444441;
+      border: none; border-radius: 50%;
+      color: #fff; font-size: 13px; line-height: 1;
+      cursor: pointer; align-items: center; justify-content: center;
+      z-index: 2; padding: 0;
+    }
+    .img-cell:hover .img-remove-btn { display: flex; }
+    .img-cell .img-remove-btn:hover { background: #000; }
+    @media print {
+      .img-remove-btn { display: none !important; }
+    }
+
+    .desc-input {
+      font-size: 14px; color: #000000; border: none; background: transparent;
+      padding: 2px 0; width: 100%; font-family: inherit; outline: none;
+      resize: none; overflow: hidden; min-height: 22px; line-height: 1.5; display: block;
+    }
+    .desc-input::placeholder { color: #000000; font-style: italic; }
+    .desc-input:focus { border-bottom: 0.5px solid #B4B2A9; }
+    .desc-print { display: none; font-size: 14px; color: #000000; font-family: inherit; line-height: 1.5; white-space: pre-wrap; word-break: break-word; padding: 2px 0; }
+    .num-input {
+      font-size: 14px; color: #000000; border: none; background: transparent;
+      padding: 2px 0; width: 56px; text-align: right; font-family: inherit; outline: none;
+    }
+    .num-input.center { text-align: center !important; display: block; margin: 0 auto; }
+    .num-input:focus { border-bottom: 0.5px solid #B4B2A9; }
+
+    .qty-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+    .qty-main { display: flex; justify-content: flex-end; align-items: center; gap: 5px; }
+    .unit-select, .custom-unit-input {
+      font-size: 11px; color: #000000;
+      border: none; border-bottom: 0.5px solid #D3D1C7;
+      background: transparent; font-family: inherit; outline: none;
+    }
+    .unit-select { width: 54px; }
+    .custom-unit-input { width: 72px; text-align: right; padding: 2px 0; }
+    .qty-print-text { display: none; }
+
+    .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: #D3D1C7; color: #000000; margin-bottom: 3px; }
+    .remove-btn { background: none; border: none; cursor: pointer; color: #000000; font-size: 16px; padding: 0 4px; line-height: 1; transition: color 0.15s; }
+    .remove-btn:hover { color: #000000; }
+    .add-row td { background: #F1EFE8; text-align: center; padding: 10px; }
+    .add-row button { background: none; border: none; font-size: 12px; color: #000000; font-style: italic; cursor: pointer; font-family: inherit; }
+    .add-row button:hover { color: #000000; }
+
+    /* ── Footer ── */
+    .footer-section {
+      padding: 24px 36px; margin-top: auto;
+      display: flex; justify-content: space-between; align-items: flex-end;
+      gap: 32px; border-bottom: 0.5px solid #D3D1C7;
+    }
+    .notes-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #000000; text-transform: uppercase; margin-bottom: 6px; }
+    .notes-list { font-size: 12px; color: #000000; line-height: 1.9; }
+    .notes-list span { display: block; }
+    .totals { text-align: right; min-width: 210px; flex-shrink: 0; }
+    .total-line { display: flex; justify-content: space-between; gap: 32px; font-size: 13px; color: #000000; margin-bottom: 6px; }
+    .total-final { display: flex; justify-content: space-between; gap: 32px; font-size: 16px; font-weight: 600; color: #000000; padding-top: 8px; border-top: 0.5px solid #888780; margin-top: 4px; }
+
+    .gst-toggle-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; justify-content: flex-end; }
+    .gst-toggle-row label { font-size: 12px; color: #000000; cursor: pointer; user-select: none; }
+    .toggle-switch { position: relative; width: 36px; height: 20px; cursor: pointer; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: #D3D1C7; border-radius: 20px; transition: background 0.2s; }
+    .toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
+    .toggle-switch input:checked + .toggle-slider { background: #444441; }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+    /* ── Signature ── */
+    .sig-section { padding: 20px 36px 24px; display: flex; justify-content: flex-end; border-bottom: 0.5px solid #D3D1C7; }
+    .sig-block { width: 240px; min-width: 240px; margin-left: auto; }
+    .sig-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: #000000; text-transform: uppercase; margin-bottom: 8px; text-align: right; }
+    .sig-upload { border: none; border-radius: 0; padding: 0; text-align: center; position: relative; min-height: 80px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; }
+    .sig-upload input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .sig-upload svg { width: 22px; height: 22px; stroke: #888780; fill: none; }
+    .sig-upload p { font-size: 12px; color: #000000; }
+    .sig-upload small { font-size: 11px; color: #000000; }
+    .sig-preview { display: block; max-height: 90px; max-width: 100%; object-fit: contain; margin-left: auto; margin-right: 0; }
+
+    .actions { padding: 16px 36px; display: flex; justify-content: flex-end; gap: 8px; }
+
+    /* ── Print styles ── */
+    @media print {
+      body { background: white; padding: 0; }
+      .toolbar, .remove-btn, .add-row, .actions, .logo-wrap input, .sig-upload input,
+      .img-cell input, .gst-toggle-row, .col-manager-overlay, .col-resize-handle, .row-resize-handle, .note-del-btn { display: none !important; }
+      .note-input { border: none !important; background: transparent !important; pointer-events: none; }
+      .note-add-btn { display: none !important; }
+      .doc { border: none; border-radius: 0; box-shadow: none; width: 210mm; min-height: 297mm; height: auto; overflow: visible; }
+      .desc-input, .num-input, .field-input { border: none !important; outline: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; box-shadow: none !important; }
+      textarea.desc-input { display: none !important; }
+      .desc-print { display: block !important; }
+      .qty-main { display: none !important; }
+      .custom-unit-input { display: none !important; }
+      .qty-print-text { display: inline !important; color: #000000; white-space: nowrap; font-size: 14px; }
+      table { page-break-inside: auto; }
+      thead { display: table-header-group; }
+      tr { page-break-inside: avoid; page-break-after: auto; }
+      .footer-section { page-break-inside: avoid; break-inside: avoid; }
+      .sig-section { page-break-inside: avoid; break-inside: avoid; }
+      .doc-end-block { page-break-inside: avoid; break-inside: avoid; }
+      @page { size: A4; margin: 12mm 14mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Column Manager Overlay -->
+  <div class="col-manager-overlay" id="colManagerOverlay">
+    <div class="col-manager-panel">
+      <h3>Manage Columns</h3>
+      <p class="hint">Toggle columns on/off, drag to reorder, or add custom columns.</p>
+      <div class="col-list" id="colList"></div>
+      <div class="col-add-section">
+        <label>Add Custom Column</label>
+        <div class="col-add-row">
+          <input class="col-add-input" type="text" id="newColName" placeholder="Column name…" maxlength="30">
+          <button class="col-add-btn" onclick="addCustomColumn()">Add</button>
+        </div>
+      </div>
+      <div class="col-manager-footer">
+        <button class="col-done-btn" onclick="closeColManager()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-ghost" onclick="openColManager()">
+      <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke:currentColor;fill:none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18"/></svg>
+      Columns
+    </button>
+    <button class="btn-ghost" onclick="window.print()">
+      <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke:currentColor;fill:none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 8V5a1 1 0 011-1h8a1 1 0 011 1v3M5 12h14M8 16h.01M16 16h.01"/></svg>
+      Print
+    </button>
+    <button class="btn-solid" onclick="savePDF()">
+      <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke:currentColor;fill:none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m-4-4l4 4 4-4"/></svg>
+      Save PDF
+    </button>
+  </div>
+
+  <div class="doc" id="quotation">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="brand-left">
+        <img class="zivo" src="EP LOGO.png" height="85px" width="60px" alt="">
+        <div>
+          <div class="brand-name">ELEVEN PEARL</div>
+          <div class="brand-sub">
+            35, Shri Dwarkesh Ind. Co-op Society, Udhna Magdalla Road<br>
+            Surat (GJ) 395017<br>
+            98986 14926 &nbsp;·&nbsp; elevenpearl702@gmail.com
+          </div>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <div class="doc-label">Quotation</div>
+        <div class="doc-number" id="quotNum">#QT-2026-001</div>
+        <div class="doc-date" id="quotDate"></div>
+      </div>
+    </div>
+
+    <!-- Party Details -->
+    <div class="party-row">
+      <div class="field-group">
+        <div>
+          <div class="field-label">Party name</div>
+          <input class="field-input" type="text" placeholder="Enter party name">
+        </div>
+        <div>
+          <div class="field-label">Address</div>
+          <input class="field-input" type="text" placeholder="Enter address">
+        </div>
+      </div>
+      <div class="field-group right">
+        <div>
+          <div class="field-label">Phone</div>
+          <input class="field-input" type="text" placeholder="Phone number">
+        </div>
+        <div>
+          <div class="field-label">Valid until</div>
+          <input class="field-input" type="date" id="validDate">
+        </div>
+      </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="tableHead"></tr></thead>
+        <tbody id="productBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="doc-end-block">
+      <div class="footer-section">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <div class="notes-label" style="margin-bottom:0">Notes</div>
+            <button onclick="addNote()" class="note-add-btn" style="background:none;border:none;cursor:pointer;font-size:13px;color:#888780;font-family:inherit;padding:0;line-height:1;" title="Add note">+ add</button>
+          </div>
+          <div class="notes-list" id="notesList"></div>
+        </div>
+        <div class="totals">
+          <div class="gst-toggle-row">
+            <label for="gstToggle">Include GST (18%)</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="gstToggle" onchange="toggleGST()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="total-line"><span>Subtotal</span><span id="subtotal">₹0.00</span></div>
+          <div class="total-line" id="gstRow" style="display:none"><span>GST (18%)</span><span id="gstAmt">₹0.00</span></div>
+          <div class="total-final"><span>Total</span><span id="grandTotal">₹0.00</span></div>
+        </div>
+      </div>
+
+      <!-- Signature -->
+      <div class="sig-section">
+        <div class="sig-block">
+          <div class="sig-label">Authorised signature</div>
+          <div class="sig-upload" id="sigUpload">
+            <img class="sig-preview" id="sigPreview" src="image.png" alt="Authorised signature">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Save PDF ──
+    function savePDF() {
+      const quotNum = document.getElementById('quotNum').textContent.trim();
+      const last3 = quotNum.slice(-3);
+      const partyName = document.querySelector('.party-row .field-input').value.trim() || 'Party';
+      const prevTitle = document.title;
+      document.title = `Quotation ${last3},${partyName}`;
+      window.print();
+      document.title = prevTitle;
+    }
+
+    // ── State ──
+    let products = [];
+    let nextId = 1;
+    const GST_RATE = 0.18;
+    let gstEnabled = false;
+
+    const NOTES_WITH_GST = [
+      '1 . Delivery Period 7 to 10 Days',
+      '2 . Transportation Charges Extra',
+      '4 . 100% advance against the PI',
+      '5 . All Rate Are Including Tax'
+    ];
+    const NOTES_WITHOUT_GST = [
+      '1 . Delivery Period 7 to 10 Days',
+      '2 . Transportation Charges Extra',
+      '4 . 100% advance against the PI',
+      '5 . All Rate Are Excluding Tax'
+    ];
+
+    // ── Column definitions ──
+    // locked: cannot be toggled off; isAmount: drives totals
+    let columns = [
+      { id: 'srno',    label: '#',           visible: true,  locked: true,  width: '32px',  align: 'left'   },
+      { id: 'image',   label: 'Image',       visible: true,  locked: false, width: '112px', align: 'center' },
+      { id: 'desc',    label: 'Description', visible: true,  locked: true,  width: null,    align: 'left'   },
+      { id: 'warranty',label: 'Warranty',    visible: true,  locked: false, width: '80px',  align: 'center' },
+      { id: 'qty',     label: 'Qty',         visible: true,  locked: false, width: '60px',  align: 'center' },
+      { id: 'rate',    label: 'Rate (₹)',    visible: true,  locked: false, width: '80px',  align: 'center' },
+      { id: 'dis',     label: 'Dis %',       visible: true,  locked: false, width: '68px',  align: 'center' },
+      { id: 'amount',  label: 'Amount (₹)',  visible: true,  locked: true,  width: '100px', align: 'center', isAmount: true },
+    ];
+    // action column (delete button) is always appended, not in columns[]
+
+    // ── Column Manager ──
+    function openColManager() {
+      renderColManager();
+      document.getElementById('colManagerOverlay').classList.add('open');
+    }
+    function closeColManager() {
+      document.getElementById('colManagerOverlay').classList.remove('open');
+      renderTable();
+    }
+
+    function renderColManager() {
+      const list = document.getElementById('colList');
+      list.innerHTML = '';
+      columns.forEach((col, idx) => {
+        const item = document.createElement('div');
+        item.className = 'col-item' + (col.locked ? ' locked' : '');
+        item.dataset.idx = idx;
+        if (!col.locked) {
+          item.draggable = true;
+          item.addEventListener('dragstart', onDragStart);
+          item.addEventListener('dragover', onDragOver);
+          item.addEventListener('drop', onDrop);
+          item.addEventListener('dragend', onDragEnd);
+        }
+        item.innerHTML = `
+          <span class="col-drag-handle">${col.locked ? '⠿' : '⠿'}</span>
+          <span class="col-item-name">${col.label}</span>
+          ${col.locked ? '<span style="font-size:10px;color:#B4B2A9;">required</span>' : `
+          <label class="col-toggle">
+            <input type="checkbox" ${col.visible ? 'checked' : ''} onchange="toggleColVisible(${idx}, this.checked)">
+            <span class="col-toggle-slider"></span>
+          </label>
+          ${col.custom ? `<button onclick="removeCustomColumn(${idx})" style="background:none;border:none;cursor:pointer;color:#B4B2A9;font-size:16px;line-height:1;padding:0 0 0 4px;" title="Delete">×</button>` : ''}
+          `}
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    function toggleColVisible(idx, val) {
+      columns[idx].visible = val;
+    }
+
+    function addCustomColumn() {
+      const input = document.getElementById('newColName');
+      const name = input.value.trim();
+      if (!name) return;
+      const newCol = {
+        id: 'custom_' + Date.now(),
+        label: name,
+        visible: true,
+        locked: false,
+        width: '80px',
+        align: 'center',
+        custom: true
+      };
+      // Insert before amount column
+      const amtIdx = columns.findIndex(c => c.id === 'amount');
+      columns.splice(amtIdx, 0, newCol);
+      // Add field to all products
+      products.forEach(p => p[newCol.id] = '');
+      input.value = '';
+      renderColManager();
+    }
+
+    function removeCustomColumn(idx) {
+      const col = columns[idx];
+      columns.splice(idx, 1);
+      products.forEach(p => delete p[col.id]);
+      renderColManager();
+    }
+
+    // ── Drag to reorder ──
+    let dragSrcIdx = null;
+    function onDragStart(e) {
+      dragSrcIdx = parseInt(e.currentTarget.dataset.idx);
+      e.currentTarget.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function onDragOver(e) {
+      e.preventDefault();
+      document.querySelectorAll('.col-item').forEach(el => el.classList.remove('drag-over'));
+      e.currentTarget.classList.add('drag-over');
+    }
+    function onDrop(e) {
+      e.preventDefault();
+      const targetIdx = parseInt(e.currentTarget.dataset.idx);
+      if (dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+      // Prevent dropping locked columns or onto locked columns (except #/desc/amount stay fixed)
+      const src = columns[dragSrcIdx];
+      const tgt = columns[targetIdx];
+      if (src.locked || tgt.locked) return;
+      const moved = columns.splice(dragSrcIdx, 1)[0];
+      columns.splice(targetIdx, 0, moved);
+      renderColManager();
+    }
+    function onDragEnd(e) {
+      e.currentTarget.classList.remove('dragging');
+      document.querySelectorAll('.col-item').forEach(el => el.classList.remove('drag-over'));
+      dragSrcIdx = null;
+    }
+
+    // ── Row heights store (keyed by product id) ──
+    let rowHeights = {};
+
+    // ── Build table header ──
+    function renderTableHead() {
+      const tr = document.getElementById('tableHead');
+      tr.innerHTML = '';
+      const visibleCols = columns.filter(c => c.visible);
+      visibleCols.forEach((col, colIdx) => {
+        const th = document.createElement('th');
+        if (col.width) th.style.width = col.width;
+        if (col.align) th.style.textAlign = col.align;
+        th.dataset.colId = col.id;
+        th.textContent = col.label;
+
+        // Column resize handle (not on last col or action col)
+        const handle = document.createElement('div');
+        handle.className = 'col-resize-handle';
+        handle.addEventListener('mousedown', (e) => startColResize(e, col, th));
+        th.appendChild(handle);
+
+        tr.appendChild(th);
+      });
+      // action column header
+      const thAct = document.createElement('th');
+      thAct.style.width = '28px';
+      tr.appendChild(thAct);
+    }
+
+    // ── Column resize ──
+    let colResizeState = null;
+    function startColResize(e, col, th) {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = th.offsetWidth;
+      const handle = th.querySelector('.col-resize-handle');
+      handle.classList.add('resizing');
+      document.body.style.cursor = 'col-resize';
+      colResizeState = { col, th, startX, startW, handle };
+
+      function onMove(e) {
+        const delta = e.clientX - colResizeState.startX;
+        const newW = Math.max(40, colResizeState.startW + delta);
+        colResizeState.col.width = newW + 'px';
+        colResizeState.th.style.width = newW + 'px';
+      }
+      function onUp() {
+        colResizeState.handle.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        colResizeState = null;
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+
+    // ── Row resize ──
+    function applyRowHeight(tr, h) {
+      tr.style.height = h + 'px';
+      tr.querySelectorAll('td').forEach(td => {
+        td.style.height = h + 'px';
+        td.style.maxHeight = h + 'px';
+      });
+    }
+
+    function startRowResize(e, productId, tr) {
+      e.preventDefault();
+      e.stopPropagation();
+      const startY = e.clientY;
+      const startH = tr.offsetHeight;
+      const handle = tr.querySelector('.row-resize-handle');
+      if (handle) handle.classList.add('resizing');
+      document.body.style.cursor = 'row-resize';
+
+      function onMove(e) {
+        const delta = e.clientY - startY;
+        const newH = Math.max(24, startH + delta);
+        rowHeights[productId] = newH;
+        applyRowHeight(tr, newH);
+      }
+      function onUp() {
+        if (handle) handle.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+
+    // ── Render table ──
+    function renderTable() {
+      renderTableHead();
+      const tbody = document.getElementById('productBody');
+      tbody.innerHTML = '';
+      const visibleCols = columns.filter(c => c.visible);
+
+      products.forEach((p, i) => {
+        const amount = calcAmount(p.qty, p.rate, p.dis);
+        const tr = document.createElement('tr');
+
+        visibleCols.forEach(col => {
+          const td = document.createElement('td');
+          td.style.textAlign = col.align || 'left';
+
+          switch(col.id) {
+            case 'srno':
+              td.className = 'muted';
+              td.textContent = i + 1;
+              break;
+
+            case 'image':
+              td.style.paddingLeft = '0';
+              td.innerHTML = `
+                <div class="img-cell" id="imgCell${p.id}">
+                  <input type="file" accept="image/*" onchange="handleProductImg(event, ${p.id})" id="imgInput${p.id}">
+                  <img id="prodImg${p.id}" alt="" src="${p.image || ''}" style="display:${p.image ? 'block' : 'none'}">
+                  <button class="img-remove-btn" style="display:${p.image ? 'none' : 'none'}" onclick="removeProductImg(event, ${p.id})" title="Remove image">×</button>
+                </div>`;
+              break;
+
+            case 'desc':
+              td.innerHTML = `
+                <textarea class="desc-input" id="descInput${p.id}" placeholder="Product description" rows="1"
+                  oninput="autoResize(this); updateField(${p.id}, 'desc', this.value)">${p.desc || ''}</textarea>
+                <div class="desc-print" id="descPrint${p.id}">${p.desc || ''}</div>`;
+              break;
+
+            case 'warranty':
+              td.innerHTML = `<input class="desc-input" type="text" style="text-align:center;" value="${p.warranty || ''}" oninput="updateField(${p.id}, 'warranty', this.value)">`;
+              break;
+
+            case 'qty':
+              td.className = 'qty-center';
+              td.innerHTML = `<input class="num-input center" type="text" value="${p.qty}" oninput="updateField(${p.id}, 'qty', this.value||1)">`;
+              break;
+
+            case 'rate':
+              td.className = 'num';
+              td.innerHTML = `<input class="num-input" type="number" min="0" value="${p.rate}" style="text-align:center;" oninput="updateField(${p.id}, 'rate', parseFloat(this.value)||0)">`;
+              break;
+
+            case 'dis':
+              td.className = 'num';
+              td.innerHTML = `<input class="num-input" type="number" min="0" max="100" value="${p.dis}" style="width:44px;font-size:11px;text-align:center;" oninput="updateField(${p.id}, 'dis', parseFloat(this.value)||0)">`;
+              break;
+
+            case 'amount':
+              td.className = 'num';
+              td.style.textAlign = 'center';
+              td.id = `amtCell${p.id}`;
+              td.textContent = `₹${amount.toFixed(2)}`;
+              break;
+
+            default:
+              // Custom column
+              td.innerHTML = `<input class="desc-input" type="text" style="text-align:center;" value="${p[col.id] || ''}" oninput="updateField(${p.id}, '${col.id}', this.value)">`;
+          }
+
+          tr.appendChild(td);
+        });
+
+        // Delete button
+        const tdDel = document.createElement('td');
+        tdDel.innerHTML = `<button class="remove-btn" onclick="removeProduct(${p.id})" title="Remove">×</button>`;
+        tr.appendChild(tdDel);
+
+        // Restore saved row height (after tds are appended)
+        if (rowHeights[p.id]) {
+          requestAnimationFrame(() => applyRowHeight(tr, rowHeights[p.id]));
+        }
+
+        // Row resize handle on first td
+        const firstTd = tr.querySelector('td');
+        if (firstTd) {
+          const rowHandle = document.createElement('div');
+          rowHandle.className = 'row-resize-handle';
+          rowHandle.title = 'Drag to resize row';
+          rowHandle.addEventListener('mousedown', (e) => startRowResize(e, p.id, tr));
+          firstTd.appendChild(rowHandle);
+        }
+
+        tbody.appendChild(tr);
+      });
+
+      // Add row
+      const addTr = document.createElement('tr');
+      addTr.className = 'add-row';
+      const colspan = visibleCols.length + 1;
+      addTr.innerHTML = `<td colspan="${colspan}"><button onclick="addProduct()">+ Add product</button></td>`;
+      tbody.appendChild(addTr);
+
+      recalcTotals();
+    }
+
+    // ── Helpers ──
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+
+    function updateField(id, key, value) {
+      const p = products.find(p => p.id === id);
+      if (p) {
+        p[key] = value;
+        if (key === 'desc') {
+          const printDiv = document.getElementById(`descPrint${id}`);
+          if (printDiv) printDiv.textContent = value;
+        }
+        recalcTotals();
+        // Update amount cell
+        const amtCell = document.getElementById(`amtCell${id}`);
+        if (amtCell) amtCell.textContent = `₹${calcAmount(p.qty, p.rate, p.dis).toFixed(2)}`;
+      }
+    }
+
+    function handleProductImg(event, id) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const img = document.getElementById('prodImg' + id);
+        const removeBtn = document.querySelector('#imgCell' + id + ' .img-remove-btn');
+        const p = products.find(p => p.id === id);
+        if (p) p.image = ev.target.result;
+        img.src = ev.target.result;
+        img.style.display = 'block';
+        if (removeBtn) removeBtn.style.display = '';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeProductImg(event, id) {
+      event.stopPropagation();
+      event.preventDefault();
+      const img = document.getElementById('prodImg' + id);
+      const removeBtn = document.querySelector('#imgCell' + id + ' .img-remove-btn');
+      const fileInput = document.getElementById('imgInput' + id);
+      const p = products.find(p => p.id === id);
+      if (p) p.image = '';
+      if (img) { img.src = ''; img.style.display = 'none'; }
+      if (removeBtn) removeBtn.style.display = 'none';
+      if (fileInput) fileInput.value = '';
+    }
+
+    function calcAmount(qty, rate, dis) {
+      const q = parseFloat(qty) || 0;
+      return q * (parseFloat(rate) || 0) * (1 - (parseFloat(dis) || 0) / 100);
+    }
+
+    function recalcTotals() {
+      const subtotal = products.reduce((sum, p) => sum + calcAmount(p.qty, p.rate, p.dis), 0);
+      const gst = gstEnabled ? subtotal * GST_RATE : 0;
+      const total = subtotal + gst;
+      document.getElementById('subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+      document.getElementById('gstAmt').textContent = `₹${gst.toFixed(2)}`;
+      document.getElementById('grandTotal').textContent = `₹${total.toFixed(2)}`;
+    }
+
+    function addProduct() {
+      const id = nextId++;
+      const p = { id, qty: '', rate: '', dis: '', desc: '', warranty: '', image: '' };
+      columns.filter(c => c.custom).forEach(c => p[c.id] = '');
+      products.push(p);
+      renderTable();
+    }
+
+    function removeProduct(id) {
+      products = products.filter(p => p.id !== id);
+      renderTable();
+    }
+
+    function toggleGST() {
+      gstEnabled = document.getElementById('gstToggle').checked;
+      document.getElementById('gstRow').style.display = gstEnabled ? 'flex' : 'none';
+      updateNotes();
+      recalcTotals();
+    }
+
+    // ── Notes state ──
+    let customNotes = null; // null = use defaults
+
+    function getActiveNotes() {
+      if (customNotes !== null) return customNotes;
+      return (gstEnabled ? NOTES_WITH_GST : NOTES_WITHOUT_GST).slice();
+    }
+
+    function updateNotes() {
+      if (customNotes === null) {
+        customNotes = (gstEnabled ? NOTES_WITH_GST : NOTES_WITHOUT_GST).slice();
+      } else {
+        // Update tax line if it exists
+        const taxIdx = customNotes.findIndex(n => n.includes('All Rate Are'));
+        if (taxIdx !== -1) {
+          customNotes[taxIdx] = gstEnabled ? '5 . All Rate Are Including Tax' : '5 . All Rate Are Excluding Tax';
+        }
+      }
+      renderNotes();
+    }
+
+    function renderNotes() {
+      const list = document.getElementById('notesList');
+      const notes = getActiveNotes();
+      list.innerHTML = notes.map((n, i) => `
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;" class="note-row">
+          <input class="note-input" value="${n.replace(/"/g, '&quot;')}" oninput="editNote(${i}, this.value)"
+            style="font-size:12px;color:#000;border:none;border-bottom:0.5px solid transparent;background:transparent;font-family:inherit;outline:none;flex:1;padding:1px 0;line-height:1.9;"
+            onfocus="this.style.borderBottomColor='#B4B2A9'"
+            onblur="this.style.borderBottomColor='transparent'">
+          <button onclick="removeNote(${i})" class="note-del-btn" title="Remove"
+            style="background:none;border:none;cursor:pointer;color:#C4C2B9;font-size:14px;line-height:1;padding:0 2px;flex-shrink:0;opacity:0;transition:opacity 0.15s;">×</button>
+        </div>
+      `).join('');
+      // Show delete buttons on row hover
+      list.querySelectorAll('.note-row').forEach(row => {
+        const btn = row.querySelector('.note-del-btn');
+        row.addEventListener('mouseenter', () => btn.style.opacity = '1');
+        row.addEventListener('mouseleave', () => btn.style.opacity = '0');
+      });
+    }
+
+    function editNote(i, val) {
+      if (customNotes === null) customNotes = getActiveNotes();
+      customNotes[i] = val;
+    }
+
+    function addNote() {
+      if (customNotes === null) customNotes = getActiveNotes();
+      customNotes.push('');
+      renderNotes();
+      // Focus the new input
+      const inputs = document.querySelectorAll('.note-input');
+      if (inputs.length) inputs[inputs.length - 1].focus();
+    }
+
+    function removeNote(i) {
+      if (customNotes === null) customNotes = getActiveNotes();
+      customNotes.splice(i, 1);
+      renderNotes();
+    }
+
+    function formatDate(d) {
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    // ── Init ──
+    (function init() {
+      const today = new Date();
+      document.getElementById('quotDate').textContent = formatDate(today);
+      const valid = new Date(today);
+      valid.setDate(valid.getDate() + 7);
+      document.getElementById('validDate').value = valid.toISOString().split('T')[0];
+      const num = String(Math.floor(Math.random() * 900) + 100);
+      document.getElementById('quotNum').textContent = `#QT-${today.getFullYear()}-${num}`;
+      updateNotes();
+      addProduct();
+    })();
+  </script>
+</body>
+</html>
