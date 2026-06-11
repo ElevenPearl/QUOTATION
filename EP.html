@@ -472,7 +472,7 @@
       <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke:currentColor;fill:none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18"/></svg>
       Columns
     </button>
-    <button class="btn-ghost" onclick="window.print()">
+    <button class="btn-ghost" onclick="html2pdf()">
       <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke:currentColor;fill:none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 8V5a1 1 0 011-1h8a1 1 0 011 1v3M5 12h14M8 16h.01M16 16h.01"/></svg>
       Print
     </button>
@@ -591,7 +591,15 @@
       document.getElementById('pdfNameOverlay').classList.remove('open');
       const prevTitle = document.title;
       document.title = name;
-      window.print();
+      html2pdf().set({
+  margin: 0,
+  filename: 'Quotation.pdf',
+  jsPDF: {
+    unit: 'mm',
+    format: 'a4',
+    orientation: 'portrait'
+  }
+}).from(document.getElementById('quotation')).save();
       document.title = prevTitle;
     }
 
