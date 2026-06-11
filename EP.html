@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ELEVEN PEARL — Quotation</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>O
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     .zivo { margin-top: 4px; }
@@ -398,7 +400,8 @@
 
     /* ── Print styles ── */
     @media print {
-      @page { size: A4 portrait; margin: 12mm 14mm; }
+      @page { size: A4 portrait; margin: 0; }
+      .doc { padding: 12mm 14mm !important; }
 
       html, body {
         width: 210mm;
@@ -465,9 +468,15 @@
       <input id="pdfNameInput" class="col-add-input" type="text" style="width:100%;margin-bottom:16px;"
         placeholder="Quotation name…"
         onkeydown="if(event.key==='Enter') confirmPrint()">
-      <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <div id="pdfProgress" style="display:none;margin-bottom:14px;">
+        <div style="font-size:12px;color:#888780;margin-bottom:6px;" id="pdfProgressLabel">Generating PDF…</div>
+        <div style="background:#E8E6E0;border-radius:4px;height:4px;overflow:hidden;">
+          <div id="pdfProgressBar" style="height:100%;width:0%;background:#444441;border-radius:4px;transition:width 0.3s;"></div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;" id="pdfModalBtns">
         <button class="btn-ghost" style="font-size:13px;padding:7px 16px;border-radius:8px;cursor:pointer;font-family:inherit;" onclick="cancelPrint()">Cancel</button>
-        <button class="col-done-btn" onclick="confirmPrint()">Save PDF</button>
+        <button class="col-done-btn" id="savePdfBtn" onclick="confirmPrint()">Save PDF</button>
       </div>
     </div>
   </div>
@@ -600,23 +609,127 @@
   </div><!-- /.doc-scaler -->
 
   <script>
-    // ── Save PDF ──
+    // ── Save PDF via jsPDF + html2canvas (no browser print dialog) ──
     function savePDF() {
       const quotNum = document.getElementById('quotNum').textContent.trim();
       const last3 = quotNum.slice(-3);
       const partyName = document.querySelector('.party-row .field-input').value.trim() || 'Party';
       const suggested = `Quotation ${last3}, ${partyName}`;
       document.getElementById('pdfNameInput').value = suggested;
+      document.getElementById('pdfProgress').style.display = 'none';
+      document.getElementById('pdfProgressBar').style.width = '0%';
+      document.getElementById('pdfModalBtns').style.display = 'flex';
       document.getElementById('pdfNameOverlay').classList.add('open');
     }
 
-    function confirmPrint() {
+    async function confirmPrint() {
       const name = document.getElementById('pdfNameInput').value.trim() || 'Quotation';
-      document.getElementById('pdfNameOverlay').classList.remove('open');
-      const prevTitle = document.title;
-      document.title = name;
-      window.print();
-      document.title = prevTitle;
+
+      // Show progress, hide buttons
+      document.getElementById('pdfModalBtns').style.display = 'none';
+      document.getElementById('pdfProgress').style.display = 'block';
+      document.getElementById('pdfProgressLabel').textContent = 'Preparing document…';
+      document.getElementById('pdfProgressBar').style.width = '10%';
+
+      // Hide UI-only elements before capture
+      const uiHide = document.querySelectorAll('.toolbar, .remove-btn, .add-row, .actions, .gst-toggle-row, .col-resize-handle, .row-resize-handle, .note-del-btn, .note-add-btn, #validDate');
+      uiHide.forEach(el => el.style.visibility = 'hidden');
+
+      // Show print-only elements
+      document.querySelectorAll('.desc-print').forEach(el => el.style.display = 'block');
+      document.querySelectorAll('textarea.desc-input').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.qty-main').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.qty-print-text').forEach(el => el.style.display = 'inline');
+      const validDisplay = document.getElementById('validDateDisplay');
+      if (validDisplay) validDisplay.style.display = 'block';
+
+      try {
+        document.getElementById('pdfProgressLabel').textContent = 'Rendering…';
+        document.getElementById('pdfProgressBar').style.width = '30%';
+
+        const doc = document.getElementById('quotation');
+        const docWidth = doc.offsetWidth;
+        const docHeight = doc.scrollHeight;
+
+        // A4 dimensions in mm
+        const A4_W = 210, A4_H = 297;
+        // Scale so doc fits A4 width (at 96dpi → mm: 1px = 0.2646mm)
+        const pxPerMm = docWidth / A4_W;
+        const pageHeightPx = A4_H * pxPerMm;
+
+        const canvas = await html2canvas(doc, {
+          scale: 3,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          scrollX: 0,
+          scrollY: -window.scrollY,
+          width: docWidth,
+          height: docHeight,
+          onclone: (clonedDoc) => {
+            const clonedEl = clonedDoc.getElementById('quotation');
+            if (clonedEl) {
+              clonedEl.style.borderRadius = '0';
+              clonedEl.style.border = 'none';
+              clonedEl.style.boxShadow = 'none';
+            }
+          }
+        });
+
+        document.getElementById('pdfProgressBar').style.width = '75%';
+        document.getElementById('pdfProgressLabel').textContent = 'Building PDF…';
+
+        const { jsPDF } = window.jspdf;
+        const imgData = canvas.toDataURL('image/jpeg', 0.97);
+        const imgWidthMm = A4_W;
+        const imgHeightMm = (canvas.height / canvas.width) * A4_W;
+
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        let yOffset = 0;
+        let remainingHeight = imgHeightMm;
+        let pageNum = 0;
+
+        while (remainingHeight > 0) {
+          if (pageNum > 0) pdf.addPage();
+          const sliceHeightMm = Math.min(A4_H, remainingHeight);
+          const sliceHeightPx = (sliceHeightMm / imgHeightMm) * canvas.height;
+          const sliceYPx = (yOffset / imgHeightMm) * canvas.height;
+
+          // Crop canvas slice for this page
+          const pageCanvas = document.createElement('canvas');
+          pageCanvas.width = canvas.width;
+          pageCanvas.height = Math.ceil(sliceHeightPx);
+          const ctx = pageCanvas.getContext('2d');
+          ctx.drawImage(canvas, 0, -sliceYPx);
+          const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.97);
+
+          pdf.addImage(pageImgData, 'JPEG', 0, 0, imgWidthMm, sliceHeightMm);
+          yOffset += sliceHeightMm;
+          remainingHeight -= A4_H;
+          pageNum++;
+        }
+
+        document.getElementById('pdfProgressBar').style.width = '100%';
+        document.getElementById('pdfProgressLabel').textContent = 'Done!';
+
+        setTimeout(() => {
+          pdf.save(name + '.pdf');
+          document.getElementById('pdfNameOverlay').classList.remove('open');
+        }, 300);
+
+      } catch (err) {
+        alert('PDF generation failed: ' + err.message);
+        document.getElementById('pdfNameOverlay').classList.remove('open');
+      } finally {
+        // Restore UI elements
+        uiHide.forEach(el => el.style.visibility = '');
+        document.querySelectorAll('.desc-print').forEach(el => el.style.display = '');
+        document.querySelectorAll('textarea.desc-input').forEach(el => el.style.display = '');
+        document.querySelectorAll('.qty-main').forEach(el => el.style.display = '');
+        document.querySelectorAll('.qty-print-text').forEach(el => el.style.display = '');
+        if (validDisplay) validDisplay.style.display = 'none';
+      }
     }
 
     function cancelPrint() {
