@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ZIVO — Quotation</title>
-  <style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>O
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     .zivo { margin-top: 4px; }
     body {
@@ -16,6 +18,7 @@
       align-items: center;
       padding: 40px 16px;
     }
+
     /* ── Mobile scaling ── */
     @media (max-width: 840px) {
       body { padding: 12px 0; background: #e8e6e0; align-items: flex-start; }
@@ -31,6 +34,7 @@
         margin: 0 auto;
       }
     }
+
     /* ── Toolbar ── */
     .toolbar {
       width: 100%;
@@ -396,6 +400,17 @@
 
     /* ── Print styles ── */
     @media print {
+      @page { size: A4 portrait; margin: 0; }
+      .doc { padding: 12mm 14mm !important; }
+
+      html, body {
+        width: 210mm;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
       body { background: white; padding: 0; margin: 0; }
       .toolbar, .remove-btn, .add-row, .actions, .logo-wrap input, .sig-upload input,
       .img-cell input, .gst-toggle-row, .col-manager-overlay, .col-resize-handle, .row-resize-handle, .note-del-btn { display: none !important; }
@@ -404,8 +419,23 @@
       /* Valid date: hide input, show text on print */
       #validDate { display: none !important; }
       #validDateDisplay { display: block !important; }
-      .doc-scaler { width: auto; overflow: visible; padding: 0; }
-      .doc { border: none; border-radius: 0; box-shadow: none; width: 100%; min-width: 0; min-height: 0; height: auto; overflow: visible; }
+      .doc-scaler {
+        width: 100% !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .doc {
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+        margin: 0 !important;
+      }
       .desc-input, .num-input, .field-input { border: none !important; outline: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; box-shadow: none !important; }
       textarea.desc-input { display: none !important; }
       .desc-print { display: block !important; }
@@ -425,7 +455,6 @@
       .footer-section { page-break-inside: avoid; break-inside: avoid; }
       .sig-section { page-break-inside: avoid; break-inside: avoid; }
       .doc-end-block { page-break-inside: avoid; break-inside: avoid; }
-      @page { size: A4; margin: 12mm 14mm; }
     }
   </style>
 </head>
@@ -439,9 +468,15 @@
       <input id="pdfNameInput" class="col-add-input" type="text" style="width:100%;margin-bottom:16px;"
         placeholder="Quotation name…"
         onkeydown="if(event.key==='Enter') confirmPrint()">
-      <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <div id="pdfProgress" style="display:none;margin-bottom:14px;">
+        <div style="font-size:12px;color:#888780;margin-bottom:6px;" id="pdfProgressLabel">Generating PDF…</div>
+        <div style="background:#E8E6E0;border-radius:4px;height:4px;overflow:hidden;">
+          <div id="pdfProgressBar" style="height:100%;width:0%;background:#444441;border-radius:4px;transition:width 0.3s;"></div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;" id="pdfModalBtns">
         <button class="btn-ghost" style="font-size:13px;padding:7px 16px;border-radius:8px;cursor:pointer;font-family:inherit;" onclick="cancelPrint()">Cancel</button>
-        <button class="col-done-btn" onclick="confirmPrint()">Save PDF</button>
+        <button class="col-done-btn" id="savePdfBtn" onclick="confirmPrint()">Save PDF</button>
       </div>
     </div>
   </div>
@@ -486,13 +521,13 @@
     <!-- Header -->
     <div class="header">
       <div class="brand-left">
-        <img class="zivo" src="ZIVO ICON.png" height="85px" width="80px" alt="">
+        <img class="zivo" src="ZIVO ICON.png" height="85px" width="60px" alt="">
         <div>
           <div class="brand-name">Z I V O</div>
           <div class="brand-sub">
             35, Shri Dwarkesh Ind. Co-op Society, Udhna Magdalla Road<br>
             Surat (GJ) 395017<br>
-            98986 14926 &nbsp;·&nbsp; elevenpearl702@gmail.com
+            98986 14926 &nbsp;·&nbsp; zivolighting@gmail.com
           </div>
         </div>
       </div>
@@ -574,23 +609,127 @@
   </div><!-- /.doc-scaler -->
 
   <script>
-    // ── Save PDF ──
+    // ── Save PDF via jsPDF + html2canvas (no browser print dialog) ──
     function savePDF() {
       const quotNum = document.getElementById('quotNum').textContent.trim();
       const last3 = quotNum.slice(-3);
       const partyName = document.querySelector('.party-row .field-input').value.trim() || 'Party';
       const suggested = `Quotation ${last3}, ${partyName}`;
       document.getElementById('pdfNameInput').value = suggested;
+      document.getElementById('pdfProgress').style.display = 'none';
+      document.getElementById('pdfProgressBar').style.width = '0%';
+      document.getElementById('pdfModalBtns').style.display = 'flex';
       document.getElementById('pdfNameOverlay').classList.add('open');
     }
 
-    function confirmPrint() {
+    async function confirmPrint() {
       const name = document.getElementById('pdfNameInput').value.trim() || 'Quotation';
-      document.getElementById('pdfNameOverlay').classList.remove('open');
-      const prevTitle = document.title;
-      document.title = name;
-      window.print();
-      document.title = prevTitle;
+
+      // Show progress, hide buttons
+      document.getElementById('pdfModalBtns').style.display = 'none';
+      document.getElementById('pdfProgress').style.display = 'block';
+      document.getElementById('pdfProgressLabel').textContent = 'Preparing document…';
+      document.getElementById('pdfProgressBar').style.width = '10%';
+
+      // Hide UI-only elements before capture
+      const uiHide = document.querySelectorAll('.toolbar, .remove-btn, .add-row, .actions, .gst-toggle-row, .col-resize-handle, .row-resize-handle, .note-del-btn, .note-add-btn, #validDate');
+      uiHide.forEach(el => el.style.visibility = 'hidden');
+
+      // Show print-only elements
+      document.querySelectorAll('.desc-print').forEach(el => el.style.display = 'block');
+      document.querySelectorAll('textarea.desc-input').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.qty-main').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.qty-print-text').forEach(el => el.style.display = 'inline');
+      const validDisplay = document.getElementById('validDateDisplay');
+      if (validDisplay) validDisplay.style.display = 'block';
+
+      try {
+        document.getElementById('pdfProgressLabel').textContent = 'Rendering…';
+        document.getElementById('pdfProgressBar').style.width = '30%';
+
+        const doc = document.getElementById('quotation');
+        const docWidth = doc.offsetWidth;
+        const docHeight = doc.scrollHeight;
+
+        // A4 dimensions in mm
+        const A4_W = 210, A4_H = 297;
+        // Scale so doc fits A4 width (at 96dpi → mm: 1px = 0.2646mm)
+        const pxPerMm = docWidth / A4_W;
+        const pageHeightPx = A4_H * pxPerMm;
+
+        const canvas = await html2canvas(doc, {
+          scale: 3,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          scrollX: 0,
+          scrollY: -window.scrollY,
+          width: docWidth,
+          height: docHeight,
+          onclone: (clonedDoc) => {
+            const clonedEl = clonedDoc.getElementById('quotation');
+            if (clonedEl) {
+              clonedEl.style.borderRadius = '0';
+              clonedEl.style.border = 'none';
+              clonedEl.style.boxShadow = 'none';
+            }
+          }
+        });
+
+        document.getElementById('pdfProgressBar').style.width = '75%';
+        document.getElementById('pdfProgressLabel').textContent = 'Building PDF…';
+
+        const { jsPDF } = window.jspdf;
+        const imgData = canvas.toDataURL('image/jpeg', 0.97);
+        const imgWidthMm = A4_W;
+        const imgHeightMm = (canvas.height / canvas.width) * A4_W;
+
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        let yOffset = 0;
+        let remainingHeight = imgHeightMm;
+        let pageNum = 0;
+
+        while (remainingHeight > 0) {
+          if (pageNum > 0) pdf.addPage();
+          const sliceHeightMm = Math.min(A4_H, remainingHeight);
+          const sliceHeightPx = (sliceHeightMm / imgHeightMm) * canvas.height;
+          const sliceYPx = (yOffset / imgHeightMm) * canvas.height;
+
+          // Crop canvas slice for this page
+          const pageCanvas = document.createElement('canvas');
+          pageCanvas.width = canvas.width;
+          pageCanvas.height = Math.ceil(sliceHeightPx);
+          const ctx = pageCanvas.getContext('2d');
+          ctx.drawImage(canvas, 0, -sliceYPx);
+          const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.97);
+
+          pdf.addImage(pageImgData, 'JPEG', 0, 0, imgWidthMm, sliceHeightMm);
+          yOffset += sliceHeightMm;
+          remainingHeight -= A4_H;
+          pageNum++;
+        }
+
+        document.getElementById('pdfProgressBar').style.width = '100%';
+        document.getElementById('pdfProgressLabel').textContent = 'Done!';
+
+        setTimeout(() => {
+          pdf.save(name + '.pdf');
+          document.getElementById('pdfNameOverlay').classList.remove('open');
+        }, 300);
+
+      } catch (err) {
+        alert('PDF generation failed: ' + err.message);
+        document.getElementById('pdfNameOverlay').classList.remove('open');
+      } finally {
+        // Restore UI elements
+        uiHide.forEach(el => el.style.visibility = '');
+        document.querySelectorAll('.desc-print').forEach(el => el.style.display = '');
+        document.querySelectorAll('textarea.desc-input').forEach(el => el.style.display = '');
+        document.querySelectorAll('.qty-main').forEach(el => el.style.display = '');
+        document.querySelectorAll('.qty-print-text').forEach(el => el.style.display = '');
+        if (validDisplay) validDisplay.style.display = 'none';
+      }
     }
 
     function cancelPrint() {
@@ -621,11 +760,11 @@
     let columns = [
       { id: 'srno',    label: '#',           visible: true,  locked: true,  width: '32px',  align: 'left'   },
       { id: 'image',   label: 'Image',       visible: true,  locked: false, width: '112px', align: 'center' },
-      { id: 'desc',    label: 'Description', visible: true,  locked: true,  width: null,    align: 'left'   },
+      { id: 'desc',    label: 'Description', visible: true,  locked: true,  width: '130px', align: 'left'   },
       { id: 'warranty',label: 'Warranty',    visible: true,  locked: false, width: '80px',  align: 'center' },
       { id: 'qty',     label: 'Qty',         visible: true,  locked: false, width: '60px',  align: 'center' },
-      { id: 'rate',    label: 'Rate (₹)',    visible: true,  locked: false, width: '80px',  align: 'center' },
-      { id: 'dis',     label: 'Dis %',       visible: true,  locked: false, width: '68px',  align: 'center' },
+      { id: 'rate',    label: 'Rate (₹)',    visible: true,  locked: false, width: '70px',  align: 'center' },
+      { id: 'dis',     label: 'Dis %',       visible: true,  locked: false, width: '60px',  align: 'center' },
       { id: 'amount',  label: 'Amount (₹)',  visible: true,  locked: true,  width: '100px', align: 'center', isAmount: true },
     ];
     // action column (delete button) is always appended, not in columns[]
