@@ -6,6 +6,8 @@
   <title>ZIVO — Quotation</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <style>O
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     .zivo { margin-top: 4px; }
@@ -64,6 +66,45 @@
       color: #F1EFE8;
     }
     .btn-solid:hover { background: #2C2C2A; }
+    .save-status {
+      font-size: 11px;
+      color: #888780;
+      align-self: center;
+      margin-right: auto;
+      min-width: 70px;
+      transition: color 0.2s;
+    }
+    .save-status.saving { color: #B4842E; }
+    .save-status.saved { color: #3C8A4B; }
+    .save-status.error { color: #C0392B; }
+    .autosave-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      margin-right: 4px;
+    }
+    .autosave-toggle-label {
+      font-size: 12px;
+      color: #444441;
+      user-select: none;
+    }
+
+    /* ── Load Quotation results ── */
+    .search-result-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #F1EFE8;
+      border-radius: 7px;
+      padding: 9px 12px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .search-result-item:hover { background: #e5e3dc; }
+    .search-result-name { font-size: 13px; color: #000; font-weight: 600; }
+    .search-result-meta { font-size: 11px; color: #888780; margin-top: 2px; }
+    .search-result-total { font-size: 12px; color: #000; font-weight: 600; white-space: nowrap; margin-left: 12px; }
 
     /* ── Column Manager Panel ── */
     .col-manager-overlay {
@@ -236,7 +277,7 @@
 
     /* ── Party row ── */
     .party-row {
-      padding: 18px 36px 26px;
+      padding: 18px 16px 26px;
       background: #F1EFE8;
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -305,13 +346,13 @@
     }
 
     .img-cell {
-      width: 96px; height: 78px; background: transparent; border-radius: 4px;
-      display: flex; align-items: center; justify-content: flex-start;
+      width: 100%; height: 78px; background: transparent; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
       overflow: visible; cursor: pointer; border: none; position: relative;
     }
     .img-cell input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; z-index: 1; }
-    .img-cell img { width: 96px; height: 78px; object-fit: contain; object-position: left center; display: none; background: transparent; border-radius: 4px; }
-    td:has(.img-cell) { text-align: left; padding-left: 0; }
+    .img-cell img { max-width: 100%; max-height: 78px; width: auto; height: auto; object-fit: contain; object-position: center center; display: none; background: transparent; border-radius: 4px; margin: auto; }
+    td:has(.img-cell) { text-align: center; }
     .img-cell .upload-icon { width: 18px; height: 18px; stroke: #B4B2A9; fill: none; display: none; }
     .img-remove-btn {
       display: none;
@@ -340,7 +381,7 @@
     .desc-print { display: none; font-size: 14px; color: #000000; font-family: inherit; line-height: 1.5; white-space: pre-wrap; word-break: break-word; padding: 2px 0; }
     .num-input {
       font-size: 14px; color: #000000; border: none; background: transparent;
-      padding: 2px 0; width: 56px; text-align: right; font-family: inherit; outline: none;
+      padding: 2px 0; width: 100%; text-align: right; font-family: inherit; outline: none;
     }
     .num-input.center { text-align: center !important; display: block; margin: 0 auto; }
     .num-input:focus { border-bottom: 0.5px solid #B4B2A9; }
@@ -413,7 +454,7 @@
       }
       body { background: white; padding: 0; margin: 0; }
       .toolbar, .remove-btn, .add-row, .actions, .logo-wrap input, .sig-upload input,
-      .img-cell input, .gst-toggle-row, .col-manager-overlay, .col-resize-handle, .row-resize-handle, .note-del-btn { display: none !important; }
+      .img-cell input, .gst-toggle-row, .col-manager-overlay, .col-resize-handle, .row-resize-handle, .note-del-btn, .save-status { display: none !important; }
       .note-input { border: none !important; background: transparent !important; pointer-events: none; }
       .note-add-btn { display: none !important; }
       /* Valid date: hide input, show text on print */
@@ -444,7 +485,7 @@
       .qty-print-text { display: inline !important; color: #000000; white-space: nowrap; font-size: 14px; }
       /* Image fix for mobile print */
       .img-cell { overflow: hidden !important; }
-      .img-cell img { display: block !important; width: 100% !important; height: auto !important; max-height: 78px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .img-cell img { display: block !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       /* Date input fix */
       input[type="date"] { -webkit-appearance: none; appearance: none; }
       input[type="date"]::-webkit-date-and-time-value { text-align: right; }
@@ -500,7 +541,41 @@
     </div>
   </div>
 
+  <!-- Load Quotation Overlay -->
+  <div class="col-manager-overlay" id="loadOverlay">
+    <div class="col-manager-panel" style="width:420px;">
+      <h3>Load Quotation</h3>
+      <p class="hint">Search by party name or last 3 digits of the quotation number.</p>
+      <input id="searchInput" class="col-add-input" type="text" style="width:100%;margin-bottom:14px;"
+        placeholder="e.g. Sharma Traders or 007" oninput="handleSearchInput()">
+      <div id="searchResults" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;margin-bottom:4px;"></div>
+      <div class="col-manager-footer">
+        <button class="col-done-btn" onclick="closeLoadOverlay()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toolbar">
+    <span class="save-status" id="saveStatus"></span>
+    <label class="autosave-toggle" title="When off, nothing is saved until you press Save">
+      <span class="autosave-toggle-label">Autosave</span>
+      <span class="col-toggle">
+        <input type="checkbox" id="autosaveToggle" onchange="setAutosaveEnabled(this.checked)">
+        <span class="col-toggle-slider"></span>
+      </span>
+    </label>
+    <button class="btn-ghost" onclick="manualSave()">
+      <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke:currentColor;fill:none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 21v-8H7v8M7 3v5h8M5 3h11l4 4v11a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+      Save
+    </button>
+    <button class="btn-ghost" onclick="startNewQuotation()">
+      <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke:currentColor;fill:none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
+      New
+    </button>
+    <button class="btn-ghost" onclick="openLoadOverlay()">
+      <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke:currentColor;fill:none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      Load
+    </button>
     <button class="btn-ghost" onclick="openColManager()">
       <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke:currentColor;fill:none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18"/></svg>
       Columns
@@ -543,21 +618,21 @@
       <div class="field-group">
         <div>
           <div class="field-label">Party name</div>
-          <input class="field-input" type="text" placeholder="Enter party name">
+          <input class="field-input" type="text" id="partyNameInput" placeholder="Enter party name" oninput="scheduleSave()">
         </div>
         <div>
           <div class="field-label">Address</div>
-          <input class="field-input" type="text" placeholder="Enter address">
+          <input class="field-input" type="text" id="partyAddressInput" placeholder="Enter address" oninput="scheduleSave()">
         </div>
       </div>
       <div class="field-group right">
         <div>
           <div class="field-label">Phone</div>
-          <input class="field-input" type="text" placeholder="Phone number">
+          <input class="field-input" type="text" id="partyPhoneInput" placeholder="Phone number" oninput="scheduleSave()">
         </div>
         <div>
           <div class="field-label">Valid until</div>
-          <input class="field-input" type="date" id="validDate" oninput="updateValidDateDisplay(this.value)">
+          <input class="field-input" type="date" id="validDate" oninput="updateValidDateDisplay(this.value); scheduleSave()">
           <div class="field-input date-print-text" id="validDateDisplay" style="display:none;"></div>
         </div>
       </div>
@@ -632,8 +707,10 @@
       document.getElementById('pdfProgressBar').style.width = '10%';
 
       // Hide UI-only elements before capture
-      const uiHide = document.querySelectorAll('.toolbar, .remove-btn, .add-row, .actions, .gst-toggle-row, .col-resize-handle, .row-resize-handle, .note-del-btn, .note-add-btn, #validDate');
+      const uiHide = document.querySelectorAll('.toolbar, .remove-btn, .add-row, .actions, .gst-toggle-row, .col-resize-handle, .row-resize-handle, .note-del-btn, .note-add-btn');
       uiHide.forEach(el => el.style.visibility = 'hidden');
+      const validInput = document.getElementById('validDate');
+      if (validInput) validInput.style.display = 'none';
 
       // Show print-only elements
       document.querySelectorAll('.desc-print').forEach(el => el.style.display = 'block');
@@ -724,6 +801,7 @@
       } finally {
         // Restore UI elements
         uiHide.forEach(el => el.style.visibility = '');
+        if (validInput) validInput.style.display = '';
         document.querySelectorAll('.desc-print').forEach(el => el.style.display = '');
         document.querySelectorAll('textarea.desc-input').forEach(el => el.style.display = '');
         document.querySelectorAll('.qty-main').forEach(el => el.style.display = '');
@@ -736,11 +814,75 @@
       document.getElementById('pdfNameOverlay').classList.remove('open');
     }
 
+    // ══════════════════════════════════════════════════════════
+    // ── Firebase config ──
+    // 1. Go to https://console.firebase.google.com → create a project (or use an existing one).
+    // 2. Add a Web App to the project, then copy the config object it gives you and paste it below.
+    // 3. In the Firebase console, go to Firestore Database → Create database (start in production
+    //    or test mode, either works to get going).
+    // 4. Use the SAME config in both EP.html and zivo.html — they save to separate collections
+    //    ("ep_quotations" / "zivo_quotations") inside the one project, so nothing overlaps.
+    // ══════════════════════════════════════════════════════════
+    const firebaseConfig = {
+      apiKey: "AIzaSyAgZu4-Qy18IJA0tzsmbm-3DLeGpwjWCP0",
+      authDomain: "quotation-generator-2daab.firebaseapp.com",
+      projectId: "quotation-generator-2daab",
+      storageBucket: "quotation-generator-2daab.firebasestorage.app",
+      messagingSenderId: "942254535869",
+      appId: "1:942254535869:web:b62bdf96cb921e4da133d4"
+    };
+    const COLLECTION = 'zivo_quotations';
+    const COUNTER_ID = 'zivo_counter';
+
+    let db = null;
+    let firebaseReady = false;
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      firebaseReady = true;
+    } catch (e) {
+      console.error('Firebase init failed — check firebaseConfig at the top of the script.', e);
+    }
+
     // ── State ──
     let products = [];
     let nextId = 1;
     const GST_RATE = 0.18;
     let gstEnabled = false;
+    let currentDocId = null;
+    let saveTimer = null;
+    let allQuotationsCache = [];
+
+    // Autosave is OFF by default — nothing gets written to Firestore just from
+    // opening/editing the page. Turning the toggle on remembers your choice
+    // (via localStorage) so you don't have to flip it every time you refresh.
+    let autosaveEnabled = localStorage.getItem('zivo_autosaveEnabled') === 'true';
+
+    function setAutosaveEnabled(val) {
+      autosaveEnabled = !!val;
+      localStorage.setItem('zivo_autosaveEnabled', autosaveEnabled ? 'true' : 'false');
+      const toggle = document.getElementById('autosaveToggle');
+      if (toggle) toggle.checked = autosaveEnabled;
+      if (autosaveEnabled) {
+        setSaveStatus('Autosave on', 'saved');
+        setTimeout(() => setSaveStatus('', ''), 1500);
+      } else {
+        clearTimeout(saveTimer);
+        setSaveStatus('', '');
+      }
+    }
+
+    // Manual save — works regardless of the autosave toggle, so you can still
+    // save on demand while autosave is off.
+    function manualSave() {
+      if (!firebaseReady) {
+        alert('Firebase is not configured yet. Add your project keys to firebaseConfig at the top of the script to enable saving and loading quotations.');
+        return;
+      }
+      clearTimeout(saveTimer);
+      setSaveStatus('Saving…', 'saving');
+      saveQuotation();
+    }
 
     const NOTES_WITH_GST = [
       '1 . Delivery Period 7 to 10 Days',
@@ -758,16 +900,16 @@
     // ── Column definitions ──
     // locked: cannot be toggled off; isAmount: drives totals
     let columns = [
-      { id: 'srno',    label: '#',           visible: true,  locked: true,  width: '32px',  align: 'left'   },
       { id: 'image',   label: 'Image',       visible: true,  locked: false, width: '112px', align: 'center' },
-      { id: 'desc',    label: 'Description', visible: true,  locked: true,  width: '130px', align: 'left'   },
+      { id: 'desc',    label: 'Description', visible: true,  locked: true,  width: '220px', align: 'left'   },
       { id: 'warranty',label: 'Warranty',    visible: true,  locked: false, width: '80px',  align: 'center' },
-      { id: 'qty',     label: 'Qty',         visible: true,  locked: false, width: '60px',  align: 'center' },
-      { id: 'rate',    label: 'Rate (₹)',    visible: true,  locked: false, width: '70px',  align: 'center' },
-      { id: 'dis',     label: 'Dis %',       visible: true,  locked: false, width: '60px',  align: 'center' },
-      { id: 'amount',  label: 'Amount (₹)',  visible: true,  locked: true,  width: '100px', align: 'center', isAmount: true },
+      { id: 'qty',     label: 'Qty',         visible: true,  locked: false, width: '52px',  align: 'center' },
+      { id: 'rate',    label: 'Rate (₹)',    visible: true,  locked: false, width: '55px',  align: 'center' },
+      { id: 'dis',     label: 'Dis %',       visible: true,  locked: false, width: '44px',  align: 'center' },
+      { id: 'amount',  label: 'Amount (₹)',  visible: true,  locked: true,  width: '78px',  align: 'center', isAmount: true },
     ];
     // action column (delete button) is always appended, not in columns[]
+    const DEFAULT_COLUMNS = JSON.parse(JSON.stringify(columns));
 
     // ── Column Manager ──
     function openColManager() {
@@ -810,6 +952,7 @@
 
     function toggleColVisible(idx, val) {
       columns[idx].visible = val;
+      scheduleSave();
     }
 
     function addCustomColumn() {
@@ -832,6 +975,7 @@
       products.forEach(p => p[newCol.id] = '');
       input.value = '';
       renderColManager();
+      scheduleSave();
     }
 
     function removeCustomColumn(idx) {
@@ -839,6 +983,7 @@
       columns.splice(idx, 1);
       products.forEach(p => delete p[col.id]);
       renderColManager();
+      scheduleSave();
     }
 
     // ── Drag to reorder ──
@@ -864,6 +1009,7 @@
       const moved = columns.splice(dragSrcIdx, 1)[0];
       columns.splice(targetIdx, 0, moved);
       renderColManager();
+      scheduleSave();
     }
     function onDragEnd(e) {
       e.currentTarget.classList.remove('dragging');
@@ -942,6 +1088,7 @@
         document.body.style.cursor = '';
         removeMoveListeners(onMove, onUp);
         colResizeState = null;
+        scheduleSave();
       }
       addMoveListeners(onMove, onUp);
     }
@@ -975,6 +1122,7 @@
         if (handle) handle.classList.remove('resizing');
         document.body.style.cursor = '';
         removeMoveListeners(onMove, onUp);
+        scheduleSave();
       }
       addMoveListeners(onMove, onUp);
     }
@@ -995,13 +1143,7 @@
           td.style.textAlign = col.align || 'left';
 
           switch(col.id) {
-            case 'srno':
-              td.className = 'muted';
-              td.textContent = i + 1;
-              break;
-
             case 'image':
-              td.style.paddingLeft = '0';
               td.innerHTML = `
                 <div class="img-cell" id="imgCell${p.id}">
                   <input type="file" accept="image/*" onchange="handleProductImg(event, ${p.id})" id="imgInput${p.id}">
@@ -1033,7 +1175,7 @@
 
             case 'dis':
               td.className = 'num';
-              td.innerHTML = `<input class="num-input" type="number" min="0" max="100" value="${p.dis}" style="width:44px;font-size:11px;text-align:center;" oninput="updateField(${p.id}, 'dis', parseFloat(this.value)||0)">`;
+              td.innerHTML = `<input class="num-input" type="number" min="0" max="100" value="${p.dis}" style="text-align:center;" oninput="updateField(${p.id}, 'dis', parseFloat(this.value)||0)">`;
               break;
 
             case 'amount':
@@ -1103,23 +1245,67 @@
         // Update amount cell
         const amtCell = document.getElementById(`amtCell${id}`);
         if (amtCell) amtCell.textContent = `₹${calcAmount(p.qty, p.rate, p.dis).toFixed(2)}`;
+        scheduleSave();
       }
     }
 
-    function handleProductImg(event, id) {
+    // Resize + re-encode an image file down to a small JPEG data URL so it
+    // never comes close to Firestore's 1MB-per-document limit. Full-res
+    // phone photos (often 2-8MB) were being stored raw, which is why saves
+    // with an image attached were failing.
+    function resizeImageFile(file, maxDim, quality) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            let { width, height } = img;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round(height * (maxDim / width));
+                width = maxDim;
+              } else {
+                width = Math.round(width * (maxDim / height));
+                height = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.onerror = reject;
+          img.src = ev.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleProductImg(event, id) {
       const file = event.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(ev) {
+      try {
+        // 500px max dimension, 0.7 JPEG quality — plenty for a table thumbnail
+        // and print, typically a few dozen KB instead of several MB.
+        const dataUrl = await resizeImageFile(file, 500, 0.7);
         const img = document.getElementById('prodImg' + id);
         const removeBtn = document.querySelector('#imgCell' + id + ' .img-remove-btn');
         const p = products.find(p => p.id === id);
-        if (p) p.image = ev.target.result;
-        img.src = ev.target.result;
+        if (p) p.image = dataUrl;
+        img.src = dataUrl;
         img.style.display = 'block';
         if (removeBtn) removeBtn.style.display = '';
-      };
-      reader.readAsDataURL(file);
+        scheduleSave();
+      } catch (err) {
+        console.error('Image processing failed:', err);
+        setSaveStatus('Image failed', 'error');
+        setTimeout(() => setSaveStatus('', ''), 1800);
+      }
     }
 
     function removeProductImg(event, id) {
@@ -1133,6 +1319,7 @@
       if (img) { img.src = ''; img.style.display = 'none'; }
       if (removeBtn) removeBtn.style.display = 'none';
       if (fileInput) fileInput.value = '';
+      scheduleSave();
     }
 
     function calcAmount(qty, rate, dis) {
@@ -1155,11 +1342,13 @@
       columns.filter(c => c.custom).forEach(c => p[c.id] = '');
       products.push(p);
       renderTable();
+      scheduleSave();
     }
 
     function removeProduct(id) {
       products = products.filter(p => p.id !== id);
       renderTable();
+      scheduleSave();
     }
 
     function toggleGST() {
@@ -1167,6 +1356,7 @@
       document.getElementById('gstRow').style.display = gstEnabled ? 'flex' : 'none';
       updateNotes();
       recalcTotals();
+      scheduleSave();
     }
 
     // ── Notes state ──
@@ -1214,6 +1404,7 @@
     function editNote(i, val) {
       if (customNotes === null) customNotes = getActiveNotes();
       customNotes[i] = val;
+      scheduleSave();
     }
 
     function addNote() {
@@ -1223,12 +1414,14 @@
       // Focus the new input
       const inputs = document.querySelectorAll('.note-input');
       if (inputs.length) inputs[inputs.length - 1].focus();
+      scheduleSave();
     }
 
     function removeNote(i) {
       if (customNotes === null) customNotes = getActiveNotes();
       customNotes.splice(i, 1);
       renderNotes();
+      scheduleSave();
     }
 
     function formatDate(d) {
@@ -1246,8 +1439,110 @@
       }
     }
 
-    // ── Init ──
-    (function init() {
+    // ══════════════════════════════════════════════════════════
+    // ── Firebase autosave / load / search ──
+    // ══════════════════════════════════════════════════════════
+    function setSaveStatus(text, cls) {
+      const el = document.getElementById('saveStatus');
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'save-status' + (cls ? ' ' + cls : '');
+    }
+
+    function scheduleSave() {
+      if (!firebaseReady || !autosaveEnabled) return;
+      setSaveStatus('Saving…', 'saving');
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveQuotation, 700);
+    }
+
+    function getPartyFields() {
+      return {
+        partyName: document.getElementById('partyNameInput')?.value || '',
+        partyAddress: document.getElementById('partyAddressInput')?.value || '',
+        partyPhone: document.getElementById('partyPhoneInput')?.value || '',
+        validDate: document.getElementById('validDate')?.value || ''
+      };
+    }
+
+    async function saveQuotation() {
+      if (!firebaseReady) return;
+      try {
+        if (!currentDocId) currentDocId = db.collection(COLLECTION).doc().id;
+        const quotNum = document.getElementById('quotNum').textContent.trim();
+        const last3 = quotNum.slice(-3);
+        const party = getPartyFields();
+        const data = {
+          quotNum,
+          quotDate: document.getElementById('quotDate').textContent.trim(),
+          last3,
+          partyName: party.partyName,
+          partyNameLower: party.partyName.toLowerCase(),
+          partyAddress: party.partyAddress,
+          partyPhone: party.partyPhone,
+          validDate: party.validDate,
+          gstEnabled,
+          notes: getActiveNotes(),
+          columns,
+          products
+        };
+        // Sanitize: strip anything not JSON-safe (undefined, functions, DOM refs, etc.)
+        // before it ever reaches Firestore — this is what "invalid nested entity" errors
+        // are almost always caused by.
+        const safeData = JSON.parse(JSON.stringify(data));
+        safeData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        await db.collection(COLLECTION).doc(currentDocId).set(safeData, { merge: false });
+        setSaveStatus('Saved ✓', 'saved');
+        setTimeout(() => setSaveStatus('', ''), 1800);
+      } catch (err) {
+        console.error('Save failed:', err);
+        setSaveStatus('Save failed', 'error');
+        const el = document.getElementById('saveStatus');
+        if (el) el.title = err.message || String(err);
+      }
+    }
+
+    async function nextQuotationNumber() {
+      const year = new Date().getFullYear();
+      if (!firebaseReady) {
+        const num = String(Math.floor(Math.random() * 900) + 100);
+        return `#QT-${year}-${num}`;
+      }
+      try {
+        const ref = db.collection('meta').doc(COUNTER_ID);
+        return await db.runTransaction(async (t) => {
+          const snap = await t.get(ref);
+          const d = snap.exists ? snap.data() : {};
+          const seq = (d.year === year ? (d.seq || 0) : 0) + 1;
+          t.set(ref, { year, seq });
+          return `#QT-${year}-${String(seq).padStart(3, '0')}`;
+        });
+      } catch (e) {
+        console.error('Counter failed, falling back to random number:', e);
+        const num = String(Math.floor(Math.random() * 900) + 100);
+        return `#QT-${year}-${num}`;
+      }
+    }
+
+    async function startNewQuotation() {
+      currentDocId = firebaseReady ? db.collection(COLLECTION).doc().id : null;
+      products = [];
+      nextId = 1;
+      columns = JSON.parse(JSON.stringify(DEFAULT_COLUMNS));
+      gstEnabled = false;
+      const gstToggleEl = document.getElementById('gstToggle');
+      if (gstToggleEl) gstToggleEl.checked = false;
+      document.getElementById('gstRow').style.display = 'none';
+      customNotes = null;
+      rowHeights = {};
+
+      const partyName = document.getElementById('partyNameInput');
+      const partyAddr = document.getElementById('partyAddressInput');
+      const partyPhone = document.getElementById('partyPhoneInput');
+      if (partyName) partyName.value = '';
+      if (partyAddr) partyAddr.value = '';
+      if (partyPhone) partyPhone.value = '';
+
       const today = new Date();
       document.getElementById('quotDate').textContent = formatDate(today);
       const valid = new Date(today);
@@ -1255,10 +1550,107 @@
       const validDateVal = valid.toISOString().split('T')[0];
       document.getElementById('validDate').value = validDateVal;
       updateValidDateDisplay(validDateVal);
-      const num = String(Math.floor(Math.random() * 900) + 100);
-      document.getElementById('quotNum').textContent = `#QT-${today.getFullYear()}-${num}`;
+
+      document.getElementById('quotNum').textContent = await nextQuotationNumber();
       updateNotes();
       addProduct();
+      closeLoadOverlay();
+    }
+
+    function loadQuotationIntoApp(data, id) {
+      currentDocId = id;
+      products = data.products || [];
+      nextId = products.reduce((m, p) => Math.max(m, p.id || 0), 0) + 1;
+      columns = data.columns && data.columns.length ? data.columns : JSON.parse(JSON.stringify(DEFAULT_COLUMNS));
+      gstEnabled = !!data.gstEnabled;
+      const gstToggleEl = document.getElementById('gstToggle');
+      if (gstToggleEl) gstToggleEl.checked = gstEnabled;
+      document.getElementById('gstRow').style.display = gstEnabled ? 'flex' : 'none';
+      customNotes = data.notes && data.notes.length ? data.notes : null;
+      rowHeights = {};
+
+      const partyName = document.getElementById('partyNameInput');
+      const partyAddr = document.getElementById('partyAddressInput');
+      const partyPhone = document.getElementById('partyPhoneInput');
+      if (partyName) partyName.value = data.partyName || '';
+      if (partyAddr) partyAddr.value = data.partyAddress || '';
+      if (partyPhone) partyPhone.value = data.partyPhone || '';
+
+      document.getElementById('quotNum').textContent = data.quotNum || '';
+      document.getElementById('quotDate').textContent = data.quotDate || '';
+      document.getElementById('validDate').value = data.validDate || '';
+      updateValidDateDisplay(data.validDate || '');
+
+      updateNotes();
+      renderTable();
+      closeLoadOverlay();
+      setSaveStatus('Loaded ✓', 'saved');
+      setTimeout(() => setSaveStatus('', ''), 1800);
+    }
+
+    function openLoadOverlay() {
+      if (!firebaseReady) {
+        alert('Firebase is not configured yet. Add your project keys to firebaseConfig at the top of the script to enable saving and loading quotations.');
+        return;
+      }
+      document.getElementById('loadOverlay').classList.add('open');
+      document.getElementById('searchInput').value = '';
+      const results = document.getElementById('searchResults');
+      results.innerHTML = '<div style="font-size:12px;color:#888780;">Loading…</div>';
+      db.collection(COLLECTION).orderBy('updatedAt', 'desc').limit(300).get()
+        .then(snap => {
+          allQuotationsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          renderSearchResults('');
+        })
+        .catch(err => {
+          console.error(err);
+          results.innerHTML = `<div style="font-size:12px;color:#C0392B;">Failed to load quotations: ${err.message}</div>`;
+        });
+    }
+
+    function closeLoadOverlay() {
+      document.getElementById('loadOverlay').classList.remove('open');
+    }
+
+    function handleSearchInput() {
+      renderSearchResults(document.getElementById('searchInput').value.trim());
+    }
+
+    function renderSearchResults(term) {
+      const t = term.toLowerCase();
+      const filtered = !t ? allQuotationsCache : allQuotationsCache.filter(q =>
+        (q.partyNameLower || '').includes(t) ||
+        (q.last3 || '').includes(t) ||
+        (q.quotNum || '').toLowerCase().includes(t)
+      );
+      const el = document.getElementById('searchResults');
+      if (!filtered.length) {
+        el.innerHTML = '<div style="font-size:12px;color:#888780;">No quotations found.</div>';
+        return;
+      }
+      el.innerHTML = filtered.slice(0, 50).map(q => {
+        const total = (q.products || []).reduce((sum, p) => sum + calcAmount(p.qty, p.rate, p.dis), 0) * (q.gstEnabled ? 1 + GST_RATE : 1);
+        return `
+        <div class="search-result-item" onclick='selectQuotation(${JSON.stringify(q.id)})'>
+          <div>
+            <div class="search-result-name">${(q.partyName || 'Untitled').replace(/</g, '&lt;')}</div>
+            <div class="search-result-meta">${q.quotNum || ''} · ${q.quotDate || ''}</div>
+          </div>
+          <div class="search-result-total">₹${total.toFixed(2)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function selectQuotation(id) {
+      const data = allQuotationsCache.find(q => q.id === id);
+      if (data) loadQuotationIntoApp(data, id);
+    }
+
+    // ── Init ──
+    (async function init() {
+      const toggle = document.getElementById('autosaveToggle');
+      if (toggle) toggle.checked = autosaveEnabled;
+      await startNewQuotation();
     })();
   </script>
 </body>
