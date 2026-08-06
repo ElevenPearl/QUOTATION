@@ -22,21 +22,49 @@
     }
 
     /* ── Mobile scaling ── */
-    @media (max-width: 840px) {
-      body { padding: 12px 0; background: #e8e6e0; align-items: flex-start; }
-      .toolbar { max-width: 100%; padding: 0 12px; justify-content: flex-start; flex-wrap: wrap; }
-      .doc-scaler {
-        width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 16px;
-      }
-      .doc {
+@media (max-width: 840px) {
+
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  body {
+    padding: 12px 0;
+    background: #e8e6e0;
+    align-items: center;
+  }
+
+  .toolbar {
     width: 100%;
-    min-width: 0;
+    max-width: 100%;
+    padding: 0 12px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .doc-scaler {
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    padding-bottom: 16px;
+  }
+
+  .doc {
+    width: 794px;
+    min-width: 794px;
     margin: 0;
+    transform-origin: top center;
+    transform: scale(calc((100vw - 20px) / 794));
+  }
+
+  .doc-scaler::after {
+    content: "";
+    display: block;
+    padding-bottom: calc(1123px * ((100vw - 20px) / 794));
+  }
 }
-    }
 
     /* ── Toolbar ── */
     .toolbar {
