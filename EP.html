@@ -32,9 +32,10 @@
         padding-bottom: 16px;
       }
       .doc {
-        min-width: 794px;
-        margin: 0 auto;
-      }
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+}
     }
 
     /* ── Toolbar ── */
@@ -242,8 +243,8 @@
       border: 0.5px solid #D3D1C7;
       border-radius: 12px;
       overflow: hidden;
-      width: 794px;
-      min-height: 1123px;
+    width: min(794px, 100%);
+    min-height: 1123px;
       display: flex;
       flex-direction: column;
     }
