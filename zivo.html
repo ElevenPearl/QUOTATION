@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZIVO — Quotation</title>
+  <title>ELEVEN PEARL — Quotation</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <style>O
+  <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     .zivo { margin-top: 4px; }
     body {
@@ -23,18 +23,56 @@
 
     /* ── Mobile scaling ── */
     @media (max-width: 840px) {
-      body { padding: 12px 0; background: #e8e6e0; align-items: flex-start; }
-      .toolbar { max-width: 100%; padding: 0 12px; justify-content: flex-start; flex-wrap: wrap; }
-      .doc-scaler {
-        width: 100%;
+      body { padding: 8px 0 28px; background: #e8e6e0; align-items: flex-start; }
+
+      .toolbar {
+        max-width: 100%;
+        padding: 0 10px 8px;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        padding-bottom: 16px;
+        gap: 6px;
+        scrollbar-width: none;
       }
-      .doc {
-        min-width: 794px;
+      .toolbar::-webkit-scrollbar { display: none; }
+      .toolbar button {
+        flex-shrink: 0;
+        padding: 9px 13px;
+        font-size: 12.5px;
+        min-height: 36px;
+      }
+      .save-status { min-width: auto; }
+      .autosave-toggle { flex-shrink: 0; }
+
+      .doc-scaler {
+        width: 100%;
+        overflow: hidden;
+        padding-bottom: 0;
+        display: flex;
+        justify-content: center;
+      }
+      .doc-scale-wrap {
+        position: relative;
         margin: 0 auto;
       }
+      .doc {
+        min-width: 0;
+        width: 794px;
+        margin: 0;
+        transform-origin: top left;
+        border-radius: 8px;
+      }
+
+      /* Resize handles are unreliable at scaled touch coordinates — hide on mobile */
+      .col-resize-handle, .row-resize-handle { display: none !important; }
+
+      /* Responsive modal panels */
+      .col-manager-panel { width: 92vw !important; max-width: 380px; padding: 20px; }
+    }
+
+    @media (max-width: 480px) {
+      .toolbar button svg { margin-right: 3px; width: 13px; height: 13px; }
     }
 
     /* ── Toolbar ── */
@@ -476,6 +514,8 @@
         height: auto !important;
         overflow: visible !important;
         margin: 0 !important;
+        transform: none !important;
+        position: static !important;
       }
       .desc-input, .num-input, .field-input { border: none !important; outline: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; box-shadow: none !important; }
       textarea.desc-input { display: none !important; }
@@ -591,18 +631,19 @@
   </div>
 
   <div class="doc-scaler">
+  <div class="doc-scale-wrap" id="docScaleWrap">
   <div class="doc" id="quotation">
 
     <!-- Header -->
     <div class="header">
       <div class="brand-left">
-        <img class="zivo" src="ZIVO ICON.png" height="80px" width="75px" alt="">
+        <img class="EP" src="ZIVO ICON.png" placeholder="COMPANY LOGO" height="85px" width="75px" alt="">
         <div>
           <div class="brand-name">Z I V O</div>
           <div class="brand-sub">
             35, Shri Dwarkesh Ind. Co-op Society, Udhna Magdalla Road<br>
             Surat (GJ) 395017<br>
-            98986 14926 &nbsp;·&nbsp; zivolighting@gmail.com
+            97838 14926 &nbsp;·&nbsp; zivolighting@gmail.com
           </div>
         </div>
       </div>
@@ -681,6 +722,7 @@
       </div>
     </div>
   </div>
+  </div><!-- /.doc-scale-wrap -->
   </div><!-- /.doc-scaler -->
 
   <script>
@@ -711,6 +753,13 @@
       uiHide.forEach(el => el.style.visibility = 'hidden');
       const validInput = document.getElementById('validDate');
       if (validInput) validInput.style.display = 'none';
+
+      // Temporarily reset mobile scaling so the capture is full-resolution
+      const docEl = document.getElementById('quotation');
+      const prevTransform = docEl.style.transform;
+      const prevPosition = docEl.style.position;
+      docEl.style.transform = 'none';
+      docEl.style.position = 'static';
 
       // Show print-only elements
       document.querySelectorAll('.desc-print').forEach(el => el.style.display = 'block');
@@ -807,11 +856,70 @@
         document.querySelectorAll('.qty-main').forEach(el => el.style.display = '');
         document.querySelectorAll('.qty-print-text').forEach(el => el.style.display = '');
         if (validDisplay) validDisplay.style.display = 'none';
+        // Restore mobile scaling
+        docEl.style.transform = prevTransform;
+        docEl.style.position = prevPosition;
+        fitDocToScreen();
       }
     }
 
     function cancelPrint() {
       document.getElementById('pdfNameOverlay').classList.remove('open');
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // ── Mobile doc scaling — shrink the fixed-width A4 document to
+    //    fit narrow screens instead of forcing horizontal scrolling ──
+    // ══════════════════════════════════════════════════════════
+    const MOBILE_BREAKPOINT = 840;
+    const DOC_WIDTH = 794;
+
+    function fitDocToScreen() {
+      const docEl = document.getElementById('quotation');
+      const wrapEl = document.getElementById('docScaleWrap');
+      if (!docEl || !wrapEl) return;
+
+      if (window.innerWidth > MOBILE_BREAKPOINT) {
+        docEl.style.transform = '';
+        docEl.style.position = '';
+        docEl.style.top = '';
+        docEl.style.left = '';
+        wrapEl.style.width = '';
+        wrapEl.style.height = '';
+        return;
+      }
+
+      const availableWidth = Math.min(window.innerWidth - 16, DOC_WIDTH);
+      const scale = Math.max(0.3, Math.min(1, availableWidth / DOC_WIDTH));
+
+      docEl.style.position = 'absolute';
+      docEl.style.top = '0';
+      docEl.style.left = '0';
+      docEl.style.transform = `scale(${scale})`;
+
+      wrapEl.style.width = (DOC_WIDTH * scale) + 'px';
+      wrapEl.style.height = (docEl.scrollHeight * scale) + 'px';
+    }
+
+    // Re-fit whenever the document's own content height changes (rows added/
+    // removed, notes edited, GST toggled, etc.) — avoids wiring this into
+    // every mutation function individually.
+    let fitScheduled = false;
+    function scheduleFit() {
+      if (fitScheduled) return;
+      fitScheduled = true;
+      requestAnimationFrame(() => { fitScheduled = false; fitDocToScreen(); });
+    }
+
+    window.addEventListener('resize', scheduleFit);
+    window.addEventListener('orientationchange', scheduleFit);
+
+    if (window.ResizeObserver) {
+      const quotObserver = new ResizeObserver(scheduleFit);
+      window.addEventListener('DOMContentLoaded', () => {
+        const el = document.getElementById('quotation');
+        if (el) quotObserver.observe(el);
+      });
     }
 
     // ══════════════════════════════════════════════════════════
@@ -831,8 +939,8 @@
       messagingSenderId: "942254535869",
       appId: "1:942254535869:web:b62bdf96cb921e4da133d4"
     };
-    const COLLECTION = 'zivo_quotations';
-    const COUNTER_ID = 'zivo_counter';
+    const COLLECTION = 'ep_quotations';
+    const COUNTER_ID = 'ep_counter';
 
     let db = null;
     let firebaseReady = false;
@@ -1225,12 +1333,14 @@
       tbody.appendChild(addTr);
 
       recalcTotals();
+      scheduleFit();
     }
 
     // ── Helpers ──
     function autoResize(el) {
       el.style.height = 'auto';
       el.style.height = el.scrollHeight + 'px';
+      scheduleFit();
     }
 
     function updateField(id, key, value) {
@@ -1636,11 +1746,58 @@
             <div class="search-result-name">${(q.partyName || 'Untitled').replace(/</g, '&lt;')}</div>
             <div class="search-result-meta">${q.quotNum || ''} · ${q.quotDate || ''}</div>
           </div>
-          <div class="search-result-total">₹${total.toFixed(2)}</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+    <div class="search-result-total">₹${total.toFixed(2)}</div>
+
+    <button
+        onclick="event.stopPropagation(); deleteQuotation('${q.id}')"
+        style="
+            border:none;
+            background:none;
+            cursor:pointer;
+            font-size:16px;
+            color:#C0392B;
+        "
+        title="Delete quotation">
+        🗑️
+    </button>
+</div>
         </div>`;
       }).join('');
     }
+async function deleteQuotation(id) {
 
+    if (!confirm("Are you sure you want to delete this quotation?")) {
+        return;
+    }
+
+    try {
+
+        await db.collection(COLLECTION).doc(id).delete();
+if (currentDocId === id) {
+
+    currentDocId = null;
+
+    startNewQuotation();
+
+}
+        allQuotationsCache =
+            allQuotationsCache.filter(q => q.id !== id);
+
+        renderSearchResults(
+            document.getElementById("searchInput").value.trim()
+        );
+
+        alert("Quotation deleted successfully.");
+
+    } catch (err) {
+
+        console.error(err);
+        alert("Failed to delete quotation.");
+
+    }
+
+}
     function selectQuotation(id) {
       const data = allQuotationsCache.find(q => q.id === id);
       if (data) loadQuotationIntoApp(data, id);
@@ -1651,6 +1808,7 @@
       const toggle = document.getElementById('autosaveToggle');
       if (toggle) toggle.checked = autosaveEnabled;
       await startNewQuotation();
+      fitDocToScreen();
     })();
   </script>
 </body>
