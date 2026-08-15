@@ -421,7 +421,7 @@
     }
 
     .img-cell {
-      width: 100%; height: 44px; background: transparent; border-radius: 4px;
+      width: 100%; height: 44px; min-height: 24px; background: transparent; border-radius: 4px;
       display: flex; align-items: center; justify-content: center;
       overflow: visible; cursor: pointer; border: none; position: relative;
     }
@@ -1270,6 +1270,13 @@
       tr.querySelectorAll('td').forEach(td => {
         td.style.height = h + 'px';
         td.style.maxHeight = h + 'px';
+      });
+      const imageHeight = Math.max(24, h - 12);
+      tr.querySelectorAll('.img-cell').forEach(cell => {
+        cell.style.height = imageHeight + 'px';
+      });
+      tr.querySelectorAll('.img-cell img').forEach(img => {
+        img.style.maxHeight = imageHeight + 'px';
       });
     }
 
