@@ -1046,12 +1046,12 @@
     // locked: cannot be toggled off; isAmount: drives totals
     let columns = [
       { id: 'image',   label: 'Image',       visible: true,  locked: false, width: '112px', align: 'center' },
-      { id: 'desc',    label: 'Description', visible: true,  locked: true,  width: '195px', align: 'left'   },
+      { id: 'desc',    label: 'Description', visible: true,  locked: true,  width: '190px', align: 'left'   },
       { id: 'warranty',label: 'Warranty',    visible: true,  locked: false, width: '80px',  align: 'center' },
       { id: 'qty',     label: 'Qty',         visible: true,  locked: false, width: '52px',  align: 'center' },
       { id: 'rate',    label: 'Rate (₹)',    visible: true,  locked: false, width: '67px',  align: 'center' },
       { id: 'dis',     label: 'Dis %',       visible: true,  locked: false, width: '50px',  align: 'center' },
-      { id: 'amount',  label: 'Amount (₹)',  visible: true,  locked: true,  width: '78px',  align: 'center', isAmount: true },
+      { id: 'amount',  label: 'Amount (₹)',  visible: true,  locked: true,  width: '85px',  align: 'center', isAmount: true },
     ];
     // action column (delete button) is always appended, not in columns[]
     const DEFAULT_COLUMNS = JSON.parse(JSON.stringify(columns));
