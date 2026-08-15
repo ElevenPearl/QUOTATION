@@ -27,23 +27,29 @@
 
       .toolbar {
         max-width: 100%;
-        padding: 0 10px 8px;
+        padding: 0 10px 10px;
         justify-content: flex-start;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        gap: 6px;
-        scrollbar-width: none;
+        flex-wrap: wrap;
+        overflow-x: visible;
+        gap: 8px 6px;
       }
-      .toolbar::-webkit-scrollbar { display: none; }
       .toolbar button {
-        flex-shrink: 0;
+        flex: 0 1 auto;
         padding: 9px 13px;
         font-size: 12.5px;
         min-height: 36px;
       }
-      .save-status { min-width: auto; }
-      .autosave-toggle { flex-shrink: 0; }
+      .save-status {
+        order: 1;
+        min-width: auto;
+        flex: 1 0 100%;
+        min-height: 14px;
+      }
+      .autosave-toggle {
+        order: 2;
+        flex: 0 0 auto;
+      }
+      .toolbar button { order: 3; }
 
       .doc-scaler {
         width: 100%;
@@ -83,6 +89,10 @@
 
     @media (max-width: 480px) {
       .toolbar button svg { margin-right: 3px; width: 13px; height: 13px; }
+      .toolbar button {
+        padding: 8px 10px;
+        font-size: 12px;
+      }
     }
 
     /* ── Toolbar ── */
