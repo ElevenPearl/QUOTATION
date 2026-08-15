@@ -8,7 +8,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     .zivo { margin-top: 4px; }
@@ -20,19 +19,6 @@
       flex-direction: column;
       align-items: center;
       padding: 40px 16px;
-    }
-    body.auth-loading .toolbar,
-    body.auth-loading .doc-scaler {
-      visibility: hidden;
-    }
-    body.auth-loading::before {
-      content: 'Loading...';
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 13px;
-      color: #444441;
     }
 
     /* ── Mobile scaling ── */
@@ -580,7 +566,7 @@
     }
   </style>
 </head>
-<body class="auth-loading">
+<body>
 
   <!-- PDF Name Modal -->
   <div class="col-manager-overlay" id="pdfNameOverlay">
@@ -953,11 +939,6 @@
       requestAnimationFrame(() => { fitScheduled = false; fitDocToScreen(); });
     }
 
-    function showAppAfterAuth() {
-      document.body.classList.remove('auth-loading');
-      fitDocToScreen();
-    }
-
     window.addEventListener('resize', scheduleFit);
     window.addEventListener('orientationchange', scheduleFit);
 
@@ -971,39 +952,30 @@
 
     // ══════════════════════════════════════════════════════════
     // ── Firebase config ──
+    // 1. Go to https://console.firebase.google.com → create a project (or use an existing one).
+    // 2. Add a Web App to the project, then copy the config object it gives you and paste it below.
+    // 3. In the Firebase console, go to Firestore Database → Create database (start in production
+    //    or test mode, either works to get going).
+    // 4. Use the SAME config in both EP.html and zivo.html — they save to separate collections
+    //    ("ep_quotations" / "zivo_quotations") inside the one project, so nothing overlaps.
     // ══════════════════════════════════════════════════════════
     const firebaseConfig = {
-      apiKey: "AIzaSyA99TW8GEv_GnDU4ub2k1WwTUjvo_gejIg",
-      authDomain: "quotation-saas-d03b0.firebaseapp.com",
-      projectId: "quotation-saas-d03b0",
-      storageBucket: "quotation-saas-d03b0.firebasestorage.app",
-      messagingSenderId: "447434004275",
-      appId: "1:447434004275:web:ce709f8e9870052d031046"
+      apiKey: "AIzaSyAgZu4-Qy18IJA0tzsmbm-3DLeGpwjWCP0",
+      authDomain: "quotation-generator-2daab.firebaseapp.com",
+      projectId: "quotation-generator-2daab",
+      storageBucket: "quotation-generator-2daab.firebasestorage.app",
+      messagingSenderId: "942254535869",
+      appId: "1:942254535869:web:b62bdf96cb921e4da133d4"
     };
     const COLLECTION = 'ep_quotations';
     const COUNTER_ID = 'ep_counter';
 
     let db = null;
-    let auth = null;
     let firebaseReady = false;
     try {
       firebase.initializeApp(firebaseConfig);
       db = firebase.firestore();
-      auth = firebase.auth();
-      auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
-        auth.onAuthStateChanged(async (user) => {
-          if (!user) {
-            window.location.href = "EP.html";
-            return;
-          }
-          firebaseReady = true;
-          await startNewQuotation();
-          showAppAfterAuth();
-        });
-      }).catch((error) => {
-        console.error("Auth persistence failed:", error);
-        window.location.href = "EP.html";
-      });
+      firebaseReady = true;
     } catch (e) {
       console.error('Firebase init failed — check firebaseConfig at the top of the script.', e);
     }
@@ -1889,6 +1861,7 @@ if (currentDocId === id) {
     (async function init() {
       const toggle = document.getElementById('autosaveToggle');
       if (toggle) toggle.checked = autosaveEnabled;
+      await startNewQuotation();
       fitDocToScreen();
     })();
   </script>
