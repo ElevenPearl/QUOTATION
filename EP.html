@@ -27,23 +27,29 @@
 
       .toolbar {
         max-width: 100%;
-        padding: 0 10px 8px;
+        padding: 0 10px 10px;
         justify-content: flex-start;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        gap: 6px;
-        scrollbar-width: none;
+        flex-wrap: wrap;
+        overflow-x: visible;
+        gap: 8px 6px;
       }
-      .toolbar::-webkit-scrollbar { display: none; }
       .toolbar button {
-        flex-shrink: 0;
+        flex: 0 1 auto;
         padding: 9px 13px;
         font-size: 12.5px;
         min-height: 36px;
       }
-      .save-status { min-width: auto; }
-      .autosave-toggle { flex-shrink: 0; }
+      .save-status {
+        order: 1;
+        min-width: auto;
+        flex: 1 0 100%;
+        min-height: 14px;
+      }
+      .autosave-toggle {
+        order: 2;
+        flex: 0 0 auto;
+      }
+      .toolbar button { order: 3; }
 
       .doc-scaler {
         width: 100%;
@@ -83,6 +89,10 @@
 
     @media (max-width: 480px) {
       .toolbar button svg { margin-right: 3px; width: 13px; height: 13px; }
+      .toolbar button {
+        padding: 8px 10px;
+        font-size: 12px;
+      }
     }
 
     /* ── Toolbar ── */
@@ -374,7 +384,7 @@
     thead th.num { text-align: right; }
     tbody tr { transition: background 0.1s; }
     tbody tr:hover td { background: #fafaf8; }
-    tbody td { font-size: 14px; color: #000000; padding: 10px 10px; border-bottom: 0.5px solid #D3D1C7; vertical-align: top; position: relative; overflow: hidden; }
+    tbody td { font-size: 14px; color: #000000; padding: 6px 8px; border-bottom: 0.5px solid #D3D1C7; vertical-align: top; position: relative; overflow: hidden; }
     tbody tr { max-height: none; }
     tbody td.num { text-align: right; color: #000000; }
     tbody td.qty-center { text-align: center; color: #000000; }
@@ -411,12 +421,12 @@
     }
 
     .img-cell {
-      width: 100%; height: 78px; background: transparent; border-radius: 4px;
+      width: 100%; height: 44px; background: transparent; border-radius: 4px;
       display: flex; align-items: center; justify-content: center;
       overflow: visible; cursor: pointer; border: none; position: relative;
     }
     .img-cell input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; z-index: 1; }
-    .img-cell img { max-width: 100%; max-height: 78px; width: auto; height: auto; object-fit: contain; object-position: center center; display: none; background: transparent; border-radius: 4px; margin: auto; }
+    .img-cell img { max-width: 100%; max-height: 44px; width: auto; height: auto; object-fit: contain; object-position: center center; display: none; background: transparent; border-radius: 4px; margin: auto; }
     td:has(.img-cell) { text-align: center; }
     .img-cell .upload-icon { width: 18px; height: 18px; stroke: #B4B2A9; fill: none; display: none; }
     .img-remove-btn {
@@ -627,7 +637,7 @@
     <label class="autosave-toggle" title="When off, nothing is saved until you press Save">
       <span class="autosave-toggle-label">Autosave</span>
       <span class="col-toggle">
-        <input type="checkbox" id="autosaveToggle" onchange="setAutosaveEnabled(this.checked)">
+        <input type="checkbox" id="autosaveToggle" checked onchange="setAutosaveEnabled(this.checked)">
         <span class="col-toggle-slider"></span>
       </span>
     </label>
@@ -1276,7 +1286,7 @@
       function onMove(e) {
         e.preventDefault();
         const delta = (clientY(e) - startY) / scale;
-        const newH = Math.max(24, startH + delta);
+        const newH = Math.max(36, startH + delta);
         rowHeights[productId] = newH;
         applyRowHeight(tr, newH);
       }
@@ -1860,7 +1870,8 @@ if (currentDocId === id) {
     // ── Init ──
     (async function init() {
       const toggle = document.getElementById('autosaveToggle');
-      if (toggle) toggle.checked = autosaveEnabled;
+      setAutosaveEnabled(true);
+      if (toggle) toggle.checked = true;
       await startNewQuotation();
       fitDocToScreen();
     })();
