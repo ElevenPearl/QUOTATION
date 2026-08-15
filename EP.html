@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     .zivo { margin-top: 4px; }
@@ -19,6 +20,19 @@
       flex-direction: column;
       align-items: center;
       padding: 40px 16px;
+    }
+    body.auth-loading .toolbar,
+    body.auth-loading .doc-scaler {
+      visibility: hidden;
+    }
+    body.auth-loading::before {
+      content: 'Loading...';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 13px;
+      color: #444441;
     }
 
     /* ── Mobile scaling ── */
@@ -64,8 +78,18 @@
         border-radius: 8px;
       }
 
-      /* Resize handles are unreliable at scaled touch coordinates — hide on mobile */
-      .col-resize-handle, .row-resize-handle { display: none !important; }
+      .col-resize-handle {
+        display: block !important;
+        width: 22px !important;
+        right: -11px !important;
+        touch-action: none;
+      }
+      .row-resize-handle {
+        display: block !important;
+        height: 22px !important;
+        bottom: -11px !important;
+        touch-action: none;
+      }
 
       /* Responsive modal panels */
       .col-manager-panel { width: 92vw !important; max-width: 380px; padding: 20px; }
@@ -203,6 +227,22 @@
       font-size: 13px;
       color: #000;
     }
+    .col-move-btn {
+      width: 28px;
+      height: 28px;
+      border: 0.5px solid #D3D1C7;
+      border-radius: 6px;
+      background: #fff;
+      color: #444441;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .col-move-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
     .col-toggle {
       position: relative;
       width: 32px;
@@ -294,7 +334,8 @@
       justify-content: space-between;
       align-items: center;
     }
-    .brand-left { display: flex; align-items: left; gap: 16px; }
+    .brand-left { display: flex; align-items: center; gap: 16px; }
+    .EP { object-fit: contain; flex-shrink: 0; }
     .logo-wrap {
       width: 64px; height: 64px;
       border: none; border-radius: 8px;
@@ -307,7 +348,7 @@
     .logo-wrap svg { width: 22px; height: 22px; stroke: #B4B2A9; fill: none; }
     .logo-placeholder { font-size: 9px; color: #000000; text-align: center; pointer-events: none; }
     .brand-name { font-size: 20px; font-weight: 600; color: #000000; letter-spacing: 0.06em; }
-    .brand-sub { font-size: 11px; color: #000000; margin-top: 4px; line-height: 1.8; }
+    .brand-sub { font-size: 11px; color: #000000; margin-top: 4px; line-height: 1.55; }
     .doc-meta { text-align: right; }
     .doc-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: #000000; text-transform: uppercase; margin-bottom: 4px; }
     .doc-number { font-size: 18px; font-weight: 600; color: #000000; }
@@ -539,7 +580,7 @@
     }
   </style>
 </head>
-<body>
+<body class="auth-loading">
 
   <!-- PDF Name Modal -->
   <div class="col-manager-overlay" id="pdfNameOverlay">
@@ -643,7 +684,8 @@
           <div class="brand-sub">
             35, Shri Dwarkesh Ind. Co-op Society, Udhna Magdalla Road<br>
             Surat (GJ) 395017<br>
-            98986 14926 &nbsp;·&nbsp; elevenpearllighting@gmail.com
+            98986 14926<br>
+            elevenpearllighting@gmail.com
           </div>
         </div>
       </div>
@@ -911,6 +953,11 @@
       requestAnimationFrame(() => { fitScheduled = false; fitDocToScreen(); });
     }
 
+    function showAppAfterAuth() {
+      document.body.classList.remove('auth-loading');
+      fitDocToScreen();
+    }
+
     window.addEventListener('resize', scheduleFit);
     window.addEventListener('orientationchange', scheduleFit);
 
@@ -924,30 +971,39 @@
 
     // ══════════════════════════════════════════════════════════
     // ── Firebase config ──
-    // 1. Go to https://console.firebase.google.com → create a project (or use an existing one).
-    // 2. Add a Web App to the project, then copy the config object it gives you and paste it below.
-    // 3. In the Firebase console, go to Firestore Database → Create database (start in production
-    //    or test mode, either works to get going).
-    // 4. Use the SAME config in both EP.html and zivo.html — they save to separate collections
-    //    ("ep_quotations" / "zivo_quotations") inside the one project, so nothing overlaps.
     // ══════════════════════════════════════════════════════════
     const firebaseConfig = {
-      apiKey: "AIzaSyAgZu4-Qy18IJA0tzsmbm-3DLeGpwjWCP0",
-      authDomain: "quotation-generator-2daab.firebaseapp.com",
-      projectId: "quotation-generator-2daab",
-      storageBucket: "quotation-generator-2daab.firebasestorage.app",
-      messagingSenderId: "942254535869",
-      appId: "1:942254535869:web:b62bdf96cb921e4da133d4"
+      apiKey: "AIzaSyA99TW8GEv_GnDU4ub2k1WwTUjvo_gejIg",
+      authDomain: "quotation-saas-d03b0.firebaseapp.com",
+      projectId: "quotation-saas-d03b0",
+      storageBucket: "quotation-saas-d03b0.firebasestorage.app",
+      messagingSenderId: "447434004275",
+      appId: "1:447434004275:web:ce709f8e9870052d031046"
     };
     const COLLECTION = 'ep_quotations';
     const COUNTER_ID = 'ep_counter';
 
     let db = null;
+    let auth = null;
     let firebaseReady = false;
     try {
       firebase.initializeApp(firebaseConfig);
       db = firebase.firestore();
-      firebaseReady = true;
+      auth = firebase.auth();
+      auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
+        auth.onAuthStateChanged(async (user) => {
+          if (!user) {
+            window.location.href = "index.html";
+            return;
+          }
+          firebaseReady = true;
+          await startNewQuotation();
+          showAppAfterAuth();
+        });
+      }).catch((error) => {
+        console.error("Auth persistence failed:", error);
+        window.location.href = "index.html";
+      });
     } catch (e) {
       console.error('Firebase init failed — check firebaseConfig at the top of the script.', e);
     }
@@ -961,10 +1017,9 @@
     let saveTimer = null;
     let allQuotationsCache = [];
 
-    // Autosave is OFF by default — nothing gets written to Firestore just from
-    // opening/editing the page. Turning the toggle on remembers your choice
-    // (via localStorage) so you don't have to flip it every time you refresh.
-    let autosaveEnabled = localStorage.getItem('ep_autosaveEnabled') === 'true';
+    // Autosave stays on by default and is re-enabled on every page load.
+    let autosaveEnabled = true;
+    localStorage.setItem('ep_autosaveEnabled', 'true');
 
     function setAutosaveEnabled(val) {
       autosaveEnabled = !!val;
@@ -1046,6 +1101,8 @@
         item.innerHTML = `
           <span class="col-drag-handle">${col.locked ? '⠿' : '⠿'}</span>
           <span class="col-item-name">${col.label}</span>
+          <button class="col-move-btn" onclick="moveColumn(${idx}, -1)" ${!canMoveColumn(idx, -1) ? 'disabled' : ''} title="Move left">‹</button>
+          <button class="col-move-btn" onclick="moveColumn(${idx}, 1)" ${!canMoveColumn(idx, 1) ? 'disabled' : ''} title="Move right">›</button>
           ${col.locked ? '<span style="font-size:10px;color:#B4B2A9;">required</span>' : `
           <label class="col-toggle">
             <input type="checkbox" ${col.visible ? 'checked' : ''} onchange="toggleColVisible(${idx}, this.checked)">
@@ -1056,6 +1113,23 @@
         `;
         list.appendChild(item);
       });
+    }
+
+    function canMoveColumn(idx, dir) {
+      if (idx < 0 || idx >= columns.length) return false;
+      const targetIdx = idx + dir;
+      if (targetIdx < 0 || targetIdx >= columns.length) return false;
+      return !columns[idx].locked && !columns[targetIdx].locked;
+    }
+
+    function moveColumn(idx, dir) {
+      if (!canMoveColumn(idx, dir)) return;
+      const targetIdx = idx + dir;
+      const moved = columns.splice(idx, 1)[0];
+      columns.splice(targetIdx, 0, moved);
+      renderColManager();
+      renderTable();
+      scheduleSave();
     }
 
     function toggleColVisible(idx, val) {
@@ -1158,6 +1232,12 @@
     // ── Unified pointer helpers (mouse + touch) ──
     function clientX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
     function clientY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
+    function getDocScale() {
+      const docEl = document.getElementById('quotation');
+      if (!docEl) return 1;
+      const rect = docEl.getBoundingClientRect();
+      return rect.width ? rect.width / docEl.offsetWidth : 1;
+    }
 
     function addMoveListeners(onMove, onUp) {
       document.addEventListener('mousemove', onMove);
@@ -1179,14 +1259,15 @@
       e.stopPropagation();
       const startX = clientX(e);
       const startW = th.offsetWidth;
+      const scale = getDocScale();
       const handle = th.querySelector('.col-resize-handle');
       handle.classList.add('resizing');
       document.body.style.cursor = 'col-resize';
-      colResizeState = { col, th, startX, startW, handle };
+      colResizeState = { col, th, startX, startW, handle, scale };
 
       function onMove(e) {
         e.preventDefault();
-        const delta = clientX(e) - colResizeState.startX;
+        const delta = (clientX(e) - colResizeState.startX) / colResizeState.scale;
         const newW = Math.max(40, colResizeState.startW + delta);
         colResizeState.col.width = newW + 'px';
         colResizeState.th.style.width = newW + 'px';
@@ -1215,13 +1296,14 @@
       e.stopPropagation();
       const startY = clientY(e);
       const startH = tr.offsetHeight;
+      const scale = getDocScale();
       const handle = tr.querySelector('.row-resize-handle');
       if (handle) handle.classList.add('resizing');
       document.body.style.cursor = 'row-resize';
 
       function onMove(e) {
         e.preventDefault();
-        const delta = clientY(e) - startY;
+        const delta = (clientY(e) - startY) / scale;
         const newH = Math.max(24, startH + delta);
         rowHeights[productId] = newH;
         applyRowHeight(tr, newH);
@@ -1807,7 +1889,6 @@ if (currentDocId === id) {
     (async function init() {
       const toggle = document.getElementById('autosaveToggle');
       if (toggle) toggle.checked = autosaveEnabled;
-      await startNewQuotation();
       fitDocToScreen();
     })();
   </script>
