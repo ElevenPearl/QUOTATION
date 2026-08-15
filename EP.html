@@ -993,7 +993,7 @@
       auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
         auth.onAuthStateChanged(async (user) => {
           if (!user) {
-            window.location.href = "index.html";
+            window.location.href = "EP.html";
             return;
           }
           firebaseReady = true;
@@ -1002,7 +1002,7 @@
         });
       }).catch((error) => {
         console.error("Auth persistence failed:", error);
-        window.location.href = "index.html";
+        window.location.href = "EP.html";
       });
     } catch (e) {
       console.error('Firebase init failed — check firebaseConfig at the top of the script.', e);
