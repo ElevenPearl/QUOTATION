@@ -627,7 +627,7 @@
     <label class="autosave-toggle" title="When off, nothing is saved until you press Save">
       <span class="autosave-toggle-label">Autosave</span>
       <span class="col-toggle">
-        <input type="checkbox" id="autosaveToggle" onchange="setAutosaveEnabled(this.checked)">
+        <input type="checkbox" id="autosaveToggle" checked onchange="setAutosaveEnabled(this.checked)">
         <span class="col-toggle-slider"></span>
       </span>
     </label>
@@ -1860,7 +1860,8 @@ if (currentDocId === id) {
     // ── Init ──
     (async function init() {
       const toggle = document.getElementById('autosaveToggle');
-      if (toggle) toggle.checked = autosaveEnabled;
+      setAutosaveEnabled(true);
+      if (toggle) toggle.checked = true;
       await startNewQuotation();
       fitDocToScreen();
     })();
