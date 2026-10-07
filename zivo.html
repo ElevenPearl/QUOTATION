@@ -363,11 +363,19 @@
     .field-group.right { text-align: right; }
     .field-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #000000; text-transform: uppercase; margin-bottom: 3px; }
     .field-input {
-      font-size: 14px; color: #000000;
-      border: none; border-bottom: 0.5px solid #B4B2A9;
-      background: transparent; padding: 3px 0 4px;
-      width: 100%; font-family: inherit; outline: none;
-    }
+  font-size: 14px;
+  line-height: 20px;
+  height: 28px;
+  box-sizing: border-box;
+  color: #000000;
+  border: none;
+  border-bottom: 0.5px solid #B4B2A9;
+  background: transparent;
+  padding: 3px 0 4px;
+  width: 100%;
+  font-family: inherit;
+  outline: none;
+}
     .field-input::placeholder { color: #000000; font-style: italic; }
     .field-input:focus { border-bottom-color: #000000; }
     .field-group.right .field-input { text-align: right; }
@@ -554,7 +562,12 @@
         transform: none !important;
         position: static !important;
       }
-      .desc-input, .num-input, .field-input { border: none !important; outline: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; box-shadow: none !important; }
+      .desc-input, .num-input, .field-input { border: none !important; outline: none !important; background: transparent !important; -webkit-appearance: none; appearance: none; box-shadow: none !important; }.field-input {
+  line-height: 20px !important;
+  height: 28px !important;
+  padding: 3px 0 4px !important;
+  box-sizing: border-box !important;
+}
       textarea.desc-input { display: none !important; }
       .desc-print { display: block !important; }
       .qty-main { display: none !important; }
