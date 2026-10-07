@@ -1549,17 +1549,26 @@
     }
 
     function updateNotes() {
-      if (customNotes === null) {
-        customNotes = (gstEnabled ? NOTES_WITH_GST : NOTES_WITHOUT_GST).slice();
-      } else {
-        // Update tax line if it exists
-        const taxIdx = customNotes.findIndex(n => n.includes('All Rate Are'));
-        if (taxIdx !== -1) {
-          customNotes[taxIdx] = gstEnabled ? '5 . All Rate Are Including Tax' : '5 . All Rate Are Excluding Tax';
-        }
-      }
-      renderNotes();
+  if (customNotes === null) {
+    customNotes = (gstEnabled ? NOTES_WITH_GST : NOTES_WITHOUT_GST).slice();
+  } else {
+    // Find the GST note and replace it according to the switch
+    const taxIdx = customNotes.findIndex(n =>
+      n.includes('Applicable GST is included in the final amount.') ||
+      n.includes('Applicable GST is not included in the final amount.') ||
+      n.includes('All Rate Are Including Tax') ||
+      n.includes('All Rate Are Excluding Tax')
+    );
+
+    if (taxIdx !== -1) {
+      customNotes[taxIdx] = gstEnabled
+        ? '4 . Applicable GST is included in the final amount.'
+        : '4 . Applicable GST is not included in the final amount.';
     }
+  }
+
+  renderNotes();
+}
 
     function renderNotes() {
       const list = document.getElementById('notesList');
